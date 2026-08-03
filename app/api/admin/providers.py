@@ -169,7 +169,7 @@ async def providers_page(request: Request):
     from app.core.local_asr import get_model_versions
     vad_engine = await get_vad_engine()
     versions   = get_model_versions(settings.MODELS_BASE)
-    return templates.TemplateResponse("providers.html", {
+    return templates.TemplateResponse(request, "providers.html", {
         "request":        request,
         "providers":      providers,
         "admin_prefix":   settings.ADMIN_PREFIX,
@@ -190,7 +190,7 @@ async def providers_keys_page(request: Request):
         {"provider": p, "label": meta["label"], "description": meta["description"]}
         for p, meta in _PROVIDER_META.items() if p in _KEYED_PROVIDERS
     ]
-    return templates.TemplateResponse("provider_keys.html", {
+    return templates.TemplateResponse(request, "provider_keys.html", {
         "request":        request,
         "admin_prefix":   settings.ADMIN_PREFIX,
         "active_page":    "provider_keys",
@@ -512,7 +512,7 @@ async def stats_page(request: Request, period: int = 1):
 
     total_cost = sum(r["cost_usd"] for r in summary)
 
-    return templates.TemplateResponse("provider_stats.html", {
+    return templates.TemplateResponse(request, "provider_stats.html", {
         "request":          request,
         "admin_prefix":     admin_prefix,
         "active_page":      "stats",

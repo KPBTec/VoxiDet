@@ -46,7 +46,7 @@ async def firewall_page(request: Request):
     if not get_session(request):
         return login_redirect(request)
     rules = await list_rules()
-    return templates.TemplateResponse("firewall.html", {
+    return templates.TemplateResponse(request, "firewall.html", {
         "request":         request,
         "rules":           rules,
         "fail2ban_status": _read_fail2ban_status(),

@@ -19,7 +19,7 @@ def _templates():
 async def login_page(request: Request):
     if get_session(request):
         return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
-    return _templates().TemplateResponse("login.html", {"request": request})
+    return _templates().TemplateResponse(request, "login.html", {"request": request})
 
 
 @router.post("/login")
@@ -35,6 +35,7 @@ async def login_submit(
         return response
     log.warning("SECURITY_REJECT ip=%s reason=login_failed path=%s", get_real_ip(request), request.url.path)
     return _templates().TemplateResponse(
+        request,
         "login.html",
         {"request": request, "error": "Usuario o contraseña incorrectos"},
         status_code=401,

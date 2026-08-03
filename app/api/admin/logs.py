@@ -16,7 +16,7 @@ router = APIRouter()
 async def logs_page(request: Request):
     if not get_session(request):
         return login_redirect(request)
-    return templates.TemplateResponse("logs.html", {
+    return templates.TemplateResponse(request, "logs.html", {
         "request": request,
         "admin_prefix": settings.ADMIN_PREFIX,
     })

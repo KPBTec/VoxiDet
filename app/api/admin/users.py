@@ -21,7 +21,7 @@ async def users_page(request: Request, msg: str = ""):
     if not sess:
         return login_redirect(request)
     users = await list_admin_users()
-    return templates.TemplateResponse("users.html", {
+    return templates.TemplateResponse(request, "users.html", {
         "request":      request,
         "users":        users,
         "current_user": sess.get("user"),

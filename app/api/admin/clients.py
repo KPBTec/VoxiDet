@@ -35,7 +35,7 @@ async def clients_page(request: Request):
     from app.db.providers import get_active_providers
     clients          = await get_all_clients_with_stats()
     active_providers = await get_active_providers()
-    return templates.TemplateResponse("clients.html", {
+    return templates.TemplateResponse(request, "clients.html", {
         "request":          request,
         "clients":          clients,
         "active_providers": active_providers,
@@ -186,7 +186,7 @@ async def client_keywords_page(request: Request, client_id: int):
     kws     = await get_all_client_keywords(client_id)
     human     = [k for k in kws if k["type"] == "HUMAN"]
     voicemail = [k for k in kws if k["type"] == "VOICEMAIL"]
-    return templates.TemplateResponse("client_keywords.html", {
+    return templates.TemplateResponse(request, "client_keywords.html", {
         "request":      request,
         "client":       client,
         "human":        human,

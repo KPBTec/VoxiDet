@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/timeseries", response_class=HTMLResponse)
 async def timeseries_page(request: Request, _=Depends(require_session)):
     clients = await get_all_clients_with_stats()
-    return _templates.TemplateResponse("timeseries.html", {
+    return _templates.TemplateResponse(request, "timeseries.html", {
         "request":      request,
         "admin_prefix": settings.ADMIN_PREFIX,
         "active_page":  "timeseries",

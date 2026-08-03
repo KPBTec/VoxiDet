@@ -17,7 +17,7 @@ async def keywords_page(request: Request, msg: str = ""):
     kws = await get_all_keywords()
     human     = [k for k in kws if k["type"] == "HUMAN"]
     voicemail = [k for k in kws if k["type"] == "VOICEMAIL"]
-    return templates.TemplateResponse("keywords.html", {
+    return templates.TemplateResponse(request, "keywords.html", {
         "request":       request,
         "admin_prefix":  settings.ADMIN_PREFIX,
         "human":         human,

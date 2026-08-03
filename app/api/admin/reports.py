@@ -52,7 +52,7 @@ async def reports_page(
         total_row = _sum_rows_day(rows)
         hourly_rows = (await query_quality(day_str, client_id))["rows"]
 
-    return _templates.TemplateResponse("reports.html", {
+    return _templates.TemplateResponse(request, "reports.html", {
         "request":         request,
         "admin_prefix":    settings.ADMIN_PREFIX,
         "active_page":     "reports",

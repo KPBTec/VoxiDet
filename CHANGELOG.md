@@ -9,6 +9,12 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.21.4 — 2026-08-03
+
+- Corregido un error crítico introducido en la actualización anterior que hacía fallar por completo el panel administrativo (error 500 en todas las páginas). Recomendamos actualizar cuanto antes si venías de la v1.21.3 o v1.19.3-v1.21.2.
+
+---
+
 ## v1.21.3 — 2026-08-03
 
 - Mejoras internas de rendimiento y confiabilidad del panel, sin cambios visibles.

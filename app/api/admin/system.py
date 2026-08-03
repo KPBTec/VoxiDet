@@ -51,7 +51,7 @@ def _get_stats() -> dict:
 async def system_page(request: Request, _=Depends(require_session)):
     from app.api.amd import active_calls
     stats = _get_stats()
-    return _templates.TemplateResponse("system.html", {
+    return _templates.TemplateResponse(request, "system.html", {
         "request":      request,
         "admin_prefix": settings.ADMIN_PREFIX,
         "active_page":  "system",
