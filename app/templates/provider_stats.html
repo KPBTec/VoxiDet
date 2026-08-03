@@ -67,7 +67,7 @@
   <div class="stat-card">
     <div class="label">Proyección mensual</div>
     {% set daily_cost = total_cost / period %}
-    <div class="value" style="color:#8b5cf6;">
+    <div class="value" style="color:var(--purple);">
       ${{ "%.3f"|format(daily_cost * 30) }}
     </div>
     <div class="sub">~${{ "%.4f"|format(daily_cost) }}/día × 30</div>

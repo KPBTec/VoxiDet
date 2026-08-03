@@ -9,6 +9,12 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.22.5 — 2026-08-03
+
+- Mejorado: varios colores de estado (activo/error/advertencia) en distintas páginas del panel que habían quedado del diseño anterior — ahora responden correctamente a los 4 temas visuales.
+
+---
+
 ## v1.22.4 — 2026-08-03
 
 - Corregido: el cálculo automático de recursos del instalador no dejaba margen de seguridad de memoria para el servicio de detección — bajo tráfico alto podía quedar muy cerca del límite. Ahora deja ~20% de colchón adicional.

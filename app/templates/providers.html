@@ -143,9 +143,9 @@
   <div style="margin-top:.8rem;font-size:.78rem;color:var(--muted);">
     <strong>Activo:</strong>
     {% if vad_engine == 'silero' and silero_loaded %}
-      <span style="color:#8b5cf6;">Silero VAD ✓</span>
+      <span style="color:var(--purple);">Silero VAD ✓</span>
     {% elif vad_engine == 'silero' and not silero_loaded %}
-      <span style="color:#8b5cf6;">Silero VAD</span> → <span style="color:var(--red);">sin modelo, usando StreamDetector como fallback</span>
+      <span style="color:var(--purple);">Silero VAD</span> → <span style="color:var(--red);">sin modelo, usando StreamDetector como fallback</span>
     {% else %}
       <span style="color:var(--text);">StreamDetector</span>
     {% endif %}

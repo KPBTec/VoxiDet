@@ -110,7 +110,7 @@ function renderKeys(provider) {
           KEY ${i + 1}&nbsp;<code style="color:var(--text);letter-spacing:.04em;">${k.masked}</code>
           ${k.source === 'env'
             ? '<span class="badge" style="font-size:.65rem;opacity:.6;" title="credentials.conf">.env</span>'
-            : '<span class="badge" style="font-size:.65rem;color:#8b5cf6;" title="Guardada desde el panel">panel</span>'}
+            : '<span class="badge" style="font-size:.65rem;color:var(--purple);" title="Guardada desde el panel">panel</span>'}
         </span>
         <div style="display:flex;align-items:center;gap:.4rem;">
           <select id="sel-${provider}-${k.index}" style="font-size:.8rem;flex:1;min-width:180px;max-width:260px;">

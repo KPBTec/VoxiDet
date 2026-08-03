@@ -75,7 +75,7 @@
     <div class="label">Disco</div>
     <div class="value">{{ stats.disk_percent }}%</div>
     <div class="bar-wrap"><div class="bar-fill"
-      style="width:{{ stats.disk_percent }}%;background:{% if stats.disk_percent > 85 %}var(--red){% elif stats.disk_percent > 70 %}var(--yellow){% else %}#14b8a6{% endif %};"></div></div>
+      style="width:{{ stats.disk_percent }}%;background:{% if stats.disk_percent > 85 %}var(--red){% elif stats.disk_percent > 70 %}var(--yellow){% else %}var(--green){% endif %};"></div></div>
     <div class="sub">{{ stats.disk_used_gb }} / {{ stats.disk_total_gb }} GB</div>
   </div>
 </div>
