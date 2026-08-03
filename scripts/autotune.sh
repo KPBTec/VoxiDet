@@ -70,7 +70,16 @@ UVICORN_WORKERS=$MAX_WORKERS_CPU
 [[ $UVICORN_WORKERS -lt 1  ]] && UVICORN_WORKERS=1
 
 API_CPU_LIMIT=$MAX_WORKERS_CPU
-API_MEM_LIMIT_MB=$(( SHARED_MODEL_MB + UVICORN_WORKERS * PER_WORKER_MB + 512 ))
+# Margen de seguridad del 20% — sin esto, el límite calculado queda pegado
+# exactamente a la estimación (modelo + workers×250MB + 512MB fijo), sin
+# nada de colchón para el uso real bajo carga. Confirmado en producción
+# (qub-amd, 2026-08-03): con 3 minutos de `docker stats` muestreados cada
+# 5s, el contenedor nunca bajó de 93% de uso y tocó 99.9% dos veces —
+# a un paso de un OOM-kill que cortaría detecciones AMD en curso — mientras
+# el host todavía tenía 3+GB "available" sin usar (`free -h`). El margen
+# solo se aplica antes del tope de CAP_MB (que ya reserva RAM para el SO),
+# así que nunca empuja al contenedor más allá de lo que el host puede dar.
+API_MEM_LIMIT_MB=$(( (SHARED_MODEL_MB + UVICORN_WORKERS * PER_WORKER_MB + 512) * 120 / 100 ))
 CAP_MB=$(( HOST_RAM_MB - 512 ))
 MIN_NEEDED_MB=$(( SHARED_MODEL_MB + PER_WORKER_MB ))
 if [[ $CAP_MB -lt $MIN_NEEDED_MB ]]; then

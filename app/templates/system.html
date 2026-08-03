@@ -11,18 +11,18 @@
 .sys-card .sub   { font-size:.75rem; color:var(--muted); margin-top:.3rem; }
 .bar-wrap { background:var(--bg); border-radius:6px; height:6px; margin-top:.6rem; overflow:hidden; }
 .bar-fill { height:100%; border-radius:6px; transition:width .4s; }
-.bar-green  { background:#22c55e; }
-.bar-yellow { background:#f59e0b; }
-.bar-red    { background:#ef4444; }
-.bar-blue   { background:#6366f1; }
+.bar-green  { background:var(--green); }
+.bar-yellow { background:var(--yellow); }
+.bar-red    { background:var(--red); }
+.bar-blue   { background:var(--info); }
 .net-table  { width:100%; border-collapse:collapse; font-size:.82rem; }
 .net-table td { padding:.35rem .6rem; border-bottom:1px solid var(--border); }
 .net-table td:first-child { color:var(--muted); font-family:var(--font-mono); }
 .live-badge { display:inline-flex; align-items:center; gap:.4rem; font-size:.8rem;
-              background:rgba(34,197,94,.12); color:#22c55e; border-radius:20px;
+              background:rgba(34,197,94,.12); color:var(--green); border-radius:20px;
               padding:.2rem .7rem; margin-left:.5rem; }
 .live-badge::before { content:''; width:7px; height:7px; border-radius:50%;
-                      background:#22c55e; animation:pulse 1.4s infinite; }
+                      background:var(--green); animation:pulse 1.4s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 .active-big { font-size:3rem; font-weight:800; color:var(--signal); line-height:1; }
 </style>
@@ -61,21 +61,21 @@
     <div class="label">CPU</div>
     <div class="value" id="val-cpu">{{ stats.cpu_percent }}%</div>
     <div class="bar-wrap"><div class="bar-fill" id="bar-cpu"
-      style="width:{{ stats.cpu_percent }}%;background:{% if stats.cpu_percent > 80 %}#ef4444{% elif stats.cpu_percent > 60 %}#f59e0b{% else %}#22c55e{% endif %};"></div></div>
+      style="width:{{ stats.cpu_percent }}%;background:{% if stats.cpu_percent > 80 %}var(--red){% elif stats.cpu_percent > 60 %}var(--yellow){% else %}var(--green){% endif %};"></div></div>
     <div class="sub" id="sub-cpu">&nbsp;</div>
   </div>
   <div class="sys-card" id="card-ram">
     <div class="label">RAM</div>
     <div class="value" id="val-ram">{{ stats.ram_percent }}%</div>
     <div class="bar-wrap"><div class="bar-fill" id="bar-ram"
-      style="width:{{ stats.ram_percent }}%;background:{% if stats.ram_percent > 80 %}#ef4444{% elif stats.ram_percent > 60 %}#f59e0b{% else %}#6366f1{% endif %};"></div></div>
+      style="width:{{ stats.ram_percent }}%;background:{% if stats.ram_percent > 80 %}var(--red){% elif stats.ram_percent > 60 %}var(--yellow){% else %}var(--info){% endif %};"></div></div>
     <div class="sub" id="sub-ram">{{ stats.ram_used_gb }} / {{ stats.ram_total_gb }} GB</div>
   </div>
   <div class="sys-card">
     <div class="label">Disco</div>
     <div class="value">{{ stats.disk_percent }}%</div>
     <div class="bar-wrap"><div class="bar-fill"
-      style="width:{{ stats.disk_percent }}%;background:{% if stats.disk_percent > 85 %}#ef4444{% elif stats.disk_percent > 70 %}#f59e0b{% else %}#14b8a6{% endif %};"></div></div>
+      style="width:{{ stats.disk_percent }}%;background:{% if stats.disk_percent > 85 %}var(--red){% elif stats.disk_percent > 70 %}var(--yellow){% else %}#14b8a6{% endif %};"></div></div>
     <div class="sub">{{ stats.disk_used_gb }} / {{ stats.disk_total_gb }} GB</div>
   </div>
 </div>
@@ -112,7 +112,7 @@
 const PREFIX = "{{ admin_prefix }}";
 
 function colorFor(pct) {
-  return pct > 80 ? "#ef4444" : pct > 60 ? "#f59e0b" : "#22c55e";
+  return pct > 80 ? "var(--red)" : pct > 60 ? "var(--yellow)" : "var(--green)";
 }
 
 function fmtBytes(b) {
@@ -140,7 +140,7 @@ async function refresh() {
     document.getElementById("val-ram").textContent = ram.toFixed(1) + "%";
     const barRam = document.getElementById("bar-ram");
     barRam.style.width = ram + "%";
-    barRam.style.background = ram > 80 ? "#ef4444" : ram > 60 ? "#f59e0b" : "#6366f1";
+    barRam.style.background = ram > 80 ? "var(--red)" : ram > 60 ? "var(--yellow)" : "var(--info)";
     document.getElementById("sub-ram").textContent =
       (d.ram_used_gb ?? 0) + " / " + (d.ram_total_gb ?? 0) + " GB";
 

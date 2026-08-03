@@ -114,16 +114,16 @@
       <td>
         <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/provider"
               class="provider-inline">
-          {% set _pcolors = {"groq":"#3b82f6","deepgram":"#a855f7","deepgramv2":"#10b981","fireworks":"#f59e0b","together":"#06b6d4","openai":"#10a37f","vosk":"#8b5cf6","vosk_stream":"#8b5cf6","sherpa":"#8b5cf6","sherpa_large":"#ef4444"} %}
+          {% set _pcolors = {"groq":"#3b82f6","deepgram":"#a855f7","deepgramv2":"var(--green)","fireworks":"var(--yellow)","together":"#06b6d4","openai":"#10a37f","vosk":"#8b5cf6","vosk_stream":"#8b5cf6","sherpa":"#8b5cf6","sherpa_large":"var(--red)"} %}
           {% set _labels  = {"groq":"GROQ","deepgram":"DEEPGRAM","deepgramv2":"DEEPGRAM v2 ⚡","fireworks":"FIREWORKS","together":"TOGETHER AI","openai":"OPENAI","vosk":"VOSK BATCH","vosk_stream":"VOSK STREAM","sherpa":"SHERPA LOCAL","sherpa_large":"SHERPA LARGE (LENTO)"} %}
           <select name="provider" onchange="this.form.submit()"
-                  style="background:transparent; border:1px solid var(--border); border-radius:4px; color:{{ _pcolors.get(c.provider, '#6b7280') }}; font-weight:600; font-size:.78rem;">
+                  style="background:transparent; border:1px solid var(--border); border-radius:4px; color:{{ _pcolors.get(c.provider, 'var(--muted)') }}; font-weight:600; font-size:.78rem;">
             {% for p in active_providers %}
               <option value="{{ p }}" {% if c.provider == p %}selected{% endif %}>{{ _labels.get(p, p|upper) }}</option>
             {% endfor %}
             {# Si el proveedor actual está inactivo, mostrarlo igual para no romper la selección #}
             {% if c.provider not in active_providers %}
-              <option value="{{ c.provider }}" selected style="color:#ef4444;">{{ _labels.get(c.provider, c.provider|upper) }} (inactivo)</option>
+              <option value="{{ c.provider }}" selected style="color:var(--red);">{{ _labels.get(c.provider, c.provider|upper) }} (inactivo)</option>
             {% endif %}
           </select>
         </form>
@@ -151,7 +151,7 @@
         <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/amd-mode" style="display:inline;">
           <select name="mode" onchange="this.form.submit()"
                   title="Batch: graba 2.5s y envía WAV (más estable) · Stream: EAGI en tiempo real (alta latencia bajo carga)"
-                  style="background:transparent; border:1px solid var(--border); border-radius:4px; font-size:.72rem; padding:.15rem .3rem; color:{{ '#f59e0b' if c.amd_mode == 'stream' else 'var(--text)' }};">
+                  style="background:transparent; border:1px solid var(--border); border-radius:4px; font-size:.72rem; padding:.15rem .3rem; color:{{ 'var(--yellow)' if c.amd_mode == 'stream' else 'var(--text)' }};">
             <option value="batch"  {% if c.amd_mode != 'stream' %}selected{% endif %}>Batch</option>
             <option value="stream" {% if c.amd_mode == 'stream' %}selected{% endif %}>Stream</option>
           </select>
@@ -249,7 +249,7 @@
 
     {# Zona peligrosa #}
     <div class="modal-section">
-      <div class="modal-section-title" style="color:#ef4444;">Zona peligrosa</div>
+      <div class="modal-section-title" style="color:var(--red);">Zona peligrosa</div>
       <div class="modal-actions">
         <form method="post" id="form-delete" action=""
               onsubmit="return confirmDelete()">

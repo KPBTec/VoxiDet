@@ -43,7 +43,7 @@
 <div class="stat-cards">
   <div class="stat-card">
     <div class="label">Costo total estimado</div>
-    <div class="value" style="color:{% if total_cost > 0 %}#f59e0b{% else %}var(--text){% endif %}">
+    <div class="value" style="color:{% if total_cost > 0 %}var(--yellow){% else %}var(--text){% endif %}">
       ${{ "%.4f"|format(total_cost) }}
     </div>
     <div class="sub">{{ "%.2f"|format(summary|sum(attribute='audio_min')) }} min de audio</div>
@@ -57,7 +57,7 @@
     <div class="label">Errores</div>
     {% set total_err = summary|sum(attribute='errors') %}
     {% set total_req = summary|sum(attribute='requests') %}
-    <div class="value" style="color:{% if total_err > 0 %}#ef4444{% else %}var(--text){% endif %}">
+    <div class="value" style="color:{% if total_err > 0 %}var(--red){% else %}var(--text){% endif %}">
       {{ "{:,}".format(total_err) }}
     </div>
     <div class="sub">
@@ -108,13 +108,13 @@
       </td>
       <td style="font-size:.75rem;">
         {% if p.billing_unit == 'mín. 10s' %}
-          <span style="color:#f59e0b;" title="Cobra mínimo 10 segundos por request — costoso en AMD con clips cortos">⚠ {{ p.billing_unit }}</span>
+          <span style="color:var(--yellow);" title="Cobra mínimo 10 segundos por request — costoso en AMD con clips cortos">⚠ {{ p.billing_unit }}</span>
         {% elif p.billing_unit == 'por segundo real' %}
-          <span style="color:#10b981;" title="Cobra exactamente los segundos reales de audio — ideal para AMD">✓ {{ p.billing_unit }}</span>
+          <span style="color:var(--green);" title="Cobra exactamente los segundos reales de audio — ideal para AMD">✓ {{ p.billing_unit }}</span>
         {% elif p.billing_unit == 'local' %}
           <span style="color:var(--muted);">local</span>
         {% else %}
-          <span style="color:#6b7280;">{{ p.billing_unit }}</span>
+          <span style="color:var(--muted);">{{ p.billing_unit }}</span>
         {% endif %}
       </td>
       <td>{{ "{:,}".format(p.requests) }}</td>

@@ -4,10 +4,10 @@
 
 {% block head %}
 <style>
-  .result-HUMAN    { color: #10b981; font-weight: 600; }
-  .result-VOICEMAIL{ color: #ef4444; font-weight: 600; }
-  .result-UNKNOWN  { color: #6b7280; }
-  .result-ERROR    { color: #f59e0b; }
+  .result-HUMAN    { color: var(--green); font-weight: 600; }
+  .result-VOICEMAIL{ color: var(--red); font-weight: 600; }
+  .result-UNKNOWN  { color: var(--muted); }
+  .result-ERROR    { color: var(--yellow); }
   #log-table tbody tr { animation: fadeIn .3s ease; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; } }
 </style>

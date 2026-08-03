@@ -5,15 +5,15 @@
 {% block head %}
 <style>
   .kw-grid      { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-  .kw-badge-H   { background: #064e3b; color: #34d399; border-radius: 4px; padding: 2px 8px; font-size:.75rem; font-weight:600; }
-  .kw-badge-V   { background: #7f1d1d; color: #fca5a5; border-radius: 4px; padding: 2px 8px; font-size:.75rem; font-weight:600; }
+  .kw-badge-H   { background: #064e3b; color: var(--green); border-radius: 4px; padding: 2px 8px; font-size:.75rem; font-weight:600; }
+  .kw-badge-V   { background: #7f1d1d; color: var(--red); border-radius: 4px; padding: 2px 8px; font-size:.75rem; font-weight:600; }
   .kw-row td    { vertical-align: middle; }
   .kw-inactive  { opacity: .4; text-decoration: line-through; }
   .add-form     { display: flex; gap: .5rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
   .add-form input { width: 160px; }
-  .alert-ok     { color: #34d399; font-size: .85rem; }
-  .alert-dup    { color: #f59e0b; font-size: .85rem; }
-  .alert-error  { color: #f87171; font-size: .85rem; }
+  .alert-ok     { color: var(--green); font-size: .85rem; }
+  .alert-dup    { color: var(--yellow); font-size: .85rem; }
+  .alert-error  { color: var(--red); font-size: .85rem; }
   @media (max-width: 700px) { .kw-grid { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
@@ -57,7 +57,7 @@
 
   {# HUMAN #}
   <div class="card">
-    <h3 style="margin-top:0; color:#34d399">
+    <h3 style="margin-top:0; color:var(--green)">
       HUMAN &nbsp;<span class="muted" style="font-size:.8rem; font-weight:400">({{ human|length }})</span>
     </h3>
     <table>
@@ -69,7 +69,7 @@
         <tr class="kw-row">
           <td class="{{ 'kw-inactive' if not k.active else '' }}">
             {{ k.word }}
-            {% if ' ' in k.word %}<span style="font-size:.68rem; color:#6b7280; margin-left:.3rem;">[frase]</span>{% endif %}
+            {% if ' ' in k.word %}<span style="font-size:.68rem; color:var(--muted); margin-left:.3rem;">[frase]</span>{% endif %}
           </td>
           <td>
             <form method="post" action="{{ admin_prefix }}/keywords/{{ k.id }}/toggle" style="margin:0">
@@ -95,7 +95,7 @@
 
   {# VOICEMAIL #}
   <div class="card">
-    <h3 style="margin-top:0; color:#f87171">
+    <h3 style="margin-top:0; color:var(--red)">
       VOICEMAIL &nbsp;<span class="muted" style="font-size:.8rem; font-weight:400">({{ voicemail|length }})</span>
     </h3>
     <table>
@@ -107,7 +107,7 @@
         <tr class="kw-row">
           <td class="{{ 'kw-inactive' if not k.active else '' }}">
             {{ k.word }}
-            {% if ' ' in k.word %}<span style="font-size:.68rem; color:#6b7280; margin-left:.3rem;">[frase]</span>{% endif %}
+            {% if ' ' in k.word %}<span style="font-size:.68rem; color:var(--muted); margin-left:.3rem;">[frase]</span>{% endif %}
           </td>
           <td>
             <form method="post" action="{{ admin_prefix }}/keywords/{{ k.id }}/toggle" style="margin:0">

@@ -42,7 +42,7 @@
 <div class="kw-grid">
   {# HUMAN #}
   <div class="card">
-    <h3 style="margin-top:0; color:#34d399">
+    <h3 style="margin-top:0; color:var(--green)">
       HUMAN &nbsp;<span class="muted" style="font-size:.8rem; font-weight:400">({{ human|length }})</span>
     </h3>
     <table>
@@ -54,7 +54,7 @@
         <tr class="kw-row">
           <td class="{{ 'kw-inactive' if not k.active else '' }}">
             {{ k.word }}
-            {% if ' ' in k.word %}<span style="font-size:.68rem; color:#6b7280; margin-left:.3rem;">[frase]</span>{% endif %}
+            {% if ' ' in k.word %}<span style="font-size:.68rem; color:var(--muted); margin-left:.3rem;">[frase]</span>{% endif %}
           </td>
           <td>
             <form method="post" action="{{ admin_prefix }}/clients/{{ client.id }}/keywords/{{ k.id }}/toggle" style="margin:0">
@@ -79,7 +79,7 @@
 
   {# VOICEMAIL #}
   <div class="card">
-    <h3 style="margin-top:0; color:#f87171">
+    <h3 style="margin-top:0; color:var(--red)">
       VOICEMAIL &nbsp;<span class="muted" style="font-size:.8rem; font-weight:400">({{ voicemail|length }})</span>
     </h3>
     <table>
@@ -91,7 +91,7 @@
         <tr class="kw-row">
           <td class="{{ 'kw-inactive' if not k.active else '' }}">
             {{ k.word }}
-            {% if ' ' in k.word %}<span style="font-size:.68rem; color:#6b7280; margin-left:.3rem;">[frase]</span>{% endif %}
+            {% if ' ' in k.word %}<span style="font-size:.68rem; color:var(--muted); margin-left:.3rem;">[frase]</span>{% endif %}
           </td>
           <td>
             <form method="post" action="{{ admin_prefix }}/clients/{{ client.id }}/keywords/{{ k.id }}/toggle" style="margin:0">

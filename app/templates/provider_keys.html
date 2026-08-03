@@ -24,7 +24,7 @@
 </div>
 
 {% if request.query_params.get('saved') %}
-<div class="alert alert-success" style="margin-bottom:1rem; padding:.75rem 1rem; background:rgba(16,185,129,.12); border:1px solid #10b981; border-radius:var(--radius); color:#10b981;">
+<div class="alert alert-success" style="margin-bottom:1rem; padding:.75rem 1rem; background:rgba(16,185,129,.12); border:1px solid var(--green); border-radius:var(--radius); color:var(--green);">
   ✓ Guardado correctamente.
 </div>
 {% endif %}
@@ -79,7 +79,7 @@ async function loadModels(provider) {
     const data = await resp.json();
     if (data.no_key) {
       container.innerHTML =
-        '<div style="color:#ef4444;font-size:.82rem;padding:.5rem 0;">' +
+        '<div style="color:var(--red);font-size:.82rem;padding:.5rem 0;">' +
         'Sin API key configurada — agregá una abajo o en credentials.conf.</div>';
       _keyDataByProvider[provider] = [];
       return;
@@ -124,7 +124,7 @@ function renderKeys(provider) {
             activa
           </label>
           ${k.source === 'db' ? `
-            <button class="btn btn-sm btn-ghost" style="color:#ef4444;font-size:.72rem;padding:.2rem .5rem;"
+            <button class="btn btn-sm btn-ghost" style="color:var(--red);font-size:.72rem;padding:.2rem .5rem;"
                     onclick="deleteKey('${provider}', ${k.index})" title="Eliminar">✕</button>
           ` : ''}
         </div>

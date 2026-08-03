@@ -9,6 +9,12 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.22.4 — 2026-08-03
+
+- Corregido: el cálculo automático de recursos del instalador no dejaba margen de seguridad de memoria para el servicio de detección — bajo tráfico alto podía quedar muy cerca del límite. Ahora deja ~20% de colchón adicional.
+
+---
+
 ## v1.22.3 — 2026-08-03
 
 - Corregido: la pantalla de inicio de sesión tenía el logo apretado adentro del mismo recuadro que el formulario — ahora está separado, más prolijo y consistente con el resto de las plataformas KPBTec.

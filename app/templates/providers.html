@@ -36,7 +36,7 @@
 </div>
 
 {% if request.query_params.get('saved') %}
-<div class="alert alert-success" style="margin-bottom:1rem; padding:.75rem 1rem; background:rgba(16,185,129,.12); border:1px solid #10b981; border-radius:var(--radius); color:#10b981;">
+<div class="alert alert-success" style="margin-bottom:1rem; padding:.75rem 1rem; background:rgba(16,185,129,.12); border:1px solid var(--green); border-radius:var(--radius); color:var(--green);">
   ✓ Modelo actualizado correctamente.
 </div>
 {% endif %}
@@ -135,7 +135,7 @@
       <button class="btn btn-sm btn-ghost" disabled
               style="opacity:.45;cursor:not-allowed;"
               title="Agrega LOCAL_SILERO_MODEL=/srv/models-local/silero/silero_vad.onnx al .env y reinicia">
-        Silero VAD &nbsp;<span style="color:#f59e0b;font-size:.7rem;">sin modelo</span>
+        Silero VAD &nbsp;<span style="color:var(--yellow);font-size:.7rem;">sin modelo</span>
       </button>
       {% endif %}
     </div>
@@ -145,16 +145,16 @@
     {% if vad_engine == 'silero' and silero_loaded %}
       <span style="color:#8b5cf6;">Silero VAD ✓</span>
     {% elif vad_engine == 'silero' and not silero_loaded %}
-      <span style="color:#8b5cf6;">Silero VAD</span> → <span style="color:#ef4444;">sin modelo, usando StreamDetector como fallback</span>
+      <span style="color:#8b5cf6;">Silero VAD</span> → <span style="color:var(--red);">sin modelo, usando StreamDetector como fallback</span>
     {% else %}
       <span style="color:var(--text);">StreamDetector</span>
     {% endif %}
     {% if not silero_loaded %}
     &nbsp;·&nbsp;
     {% if model_versions.silero %}
-    <span style="color:#f59e0b;">Modelo <code>{{ model_versions.silero }}</code> en disco pero no cargado — reinicia el servidor</span>
+    <span style="color:var(--yellow);">Modelo <code>{{ model_versions.silero }}</code> en disco pero no cargado — reinicia el servidor</span>
     {% else %}
-    <span style="color:#f59e0b;">Sin modelo — ejecuta <code>sudo bash deploy.sh</code> para descargarlo</span>
+    <span style="color:var(--yellow);">Sin modelo — ejecuta <code>sudo bash deploy.sh</code> para descargarlo</span>
     {% endif %}
     {% endif %}
   </div>
@@ -225,7 +225,7 @@ async function loadStatus() {
   try {
     const resp = await fetch(`${_prefix}/providers/${_provider}/models`);
     const data = await resp.json();
-    const color  = data.loaded ? '#10b981' : '#ef4444';
+    const color  = data.loaded ? 'var(--green)' : 'var(--red)';
     const icon   = data.loaded ? '✓' : '✗';
     const status = data.loaded ? 'Modelo cargado y listo' : 'Modelo no cargado — corré sudo bash deploy.sh para descargarlo';
     document.getElementById('keys-list').innerHTML = `
