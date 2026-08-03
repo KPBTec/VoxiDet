@@ -157,6 +157,12 @@ async def get_all_clients_with_stats() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+async def count_active_clients() -> int:
+    async with get_db() as db:
+        result = await db.execute(text("SELECT COUNT(*) FROM clients WHERE active=1"))
+        return result.scalar() or 0
+
+
 async def create_client(
     name: str, limit: int, api_key: str, install_token: str,
     provider: str = "groq", ips: str = "", notes: str = "",

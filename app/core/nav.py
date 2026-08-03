@@ -37,7 +37,24 @@ ICONS: dict[str, str] = {
         '<circle cx="9" cy="7" r="4"/>'
         '<path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'
     ),
+    "dashboard": (
+        '<rect x="3" y="3" width="7" height="9" rx="1"/>'
+        '<rect x="14" y="3" width="7" height="5" rx="1"/>'
+        '<rect x="14" y="12" width="7" height="9" rx="1"/>'
+        '<rect x="3" y="16" width="7" height="5" rx="1"/>'
+    ),
+    "system_logs": (
+        '<path d="M4 4h16v16H4z" opacity="0"/>'
+        '<polyline points="8 9 5 12 8 15"/><polyline points="16 9 19 12 16 15"/>'
+        '<line x1="13" y1="6" x2="11" y2="18"/>'
+    ),
 }
+
+# Ítems pinneados sobre los grupos (sin acordeón, siempre visibles) — mismo
+# patrón que los 2 ítems fijos arriba del Sidebar.tsx de VoxiKam (Dashboard/Live).
+PINNED_ITEMS: list[dict] = [
+    {"key": "dashboard", "href": "/dashboard", "label": "Dashboard", "icon": "dashboard"},
+]
 
 NAV_GROUPS: list[dict] = [
     {
@@ -61,9 +78,10 @@ NAV_GROUPS: list[dict] = [
     {
         "label": "Sistema",
         "items": [
-            {"key": "firewall", "href": "/firewall", "label": "Firewall", "icon": "firewall"},
-            {"key": "system",   "href": "/system",   "label": "Sistema",  "icon": "system"},
-            {"key": "users",    "href": "/users",    "label": "Usuarios", "icon": "users"},
+            {"key": "firewall",     "href": "/firewall",    "label": "Firewall",     "icon": "firewall"},
+            {"key": "system",       "href": "/system",      "label": "Sistema",      "icon": "system"},
+            {"key": "system_logs",  "href": "/system/logs", "label": "Logs backend", "icon": "system_logs"},
+            {"key": "users",        "href": "/users",       "label": "Usuarios",     "icon": "users"},
         ],
     },
 ]

@@ -2,27 +2,32 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.api.deps import require_admin
-from app.api.admin import auth, clients, logs, keywords, providers, firewall, system, timeseries, reports, users
+from app.api.admin import (
+    auth, clients, logs, keywords, providers, firewall, system, system_logs,
+    timeseries, reports, users, dashboard,
+)
 from app.config import settings
 
 router = APIRouter()
 
 # Rutas del CMS (sesión web)
 router.include_router(auth.router)
+router.include_router(dashboard.router)
 router.include_router(clients.router)
 router.include_router(logs.router)
 router.include_router(keywords.router)
 router.include_router(providers.router)
 router.include_router(firewall.router)
 router.include_router(system.router)
+router.include_router(system_logs.router)
 router.include_router(timeseries.router)
 router.include_router(reports.router)
 router.include_router(users.router)
 
-# Redirect raíz del admin → clientes
+# Redirect raíz del admin → Dashboard
 @router.get("/")
 async def admin_root():
-    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
+    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/dashboard", status_code=302)
 
 # API JSON para acceso programático (X-Admin-Key)
 _api = APIRouter(prefix="/api", dependencies=[Depends(require_admin)])

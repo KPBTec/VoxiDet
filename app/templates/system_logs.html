@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Logs backend — VoxiDet{% endblock %}
+{% set active_page = 'system_logs' %}
+
+{% block head %}
+<style>
+.log-toolbar { display:flex; gap:.6rem; align-items:center; margin-bottom:1rem; flex-wrap:wrap; }
+.log-toolbar select { width:auto; }
+.log-box {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 1rem 1.1rem; height: 65vh; overflow-y: auto;
+  font-family: var(--font-mono); font-size: .78rem; line-height: 1.5; white-space: pre-wrap; word-break: break-all;
+}
+.log-box .line:hover { background: rgba(221,139,61,.06); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Logs backend</h2>
+</div>
+
+<div class="log-toolbar">
+  <span class="muted" style="font-size:.8rem;">Fuente</span>
+  <select id="f-source">
+    {% for s in sources %}
+    <option value="{{ s }}">{{ s }}</option>
+    {% endfor %}
+  </select>
+  <span class="muted" style="font-size:.8rem;">Líneas</span>
+  <select id="f-lines">
+    <option value="100">100</option>
+    <option value="200" selected>200</option>
+    <option value="500">500</option>
+    <option value="1000">1000</option>
+  </select>
+  <button type="button" class="btn btn-sm btn-primary" id="btn-refresh">Refrescar</button>
+  <label style="display:flex;align-items:center;gap:.35rem;font-size:.8rem;color:var(--muted);margin-left:.5rem;">
+    <input type="checkbox" id="f-auto"> Auto-refrescar (10s)
+  </label>
+</div>
+
+<div class="log-box" id="log-box">Cargando...</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PREFIX = "{{ admin_prefix }}";
+let timer = null;
+
+async function load() {
+  const source = document.getElementById("f-source").value;
+  const lines  = document.getElementById("f-lines").value;
+  const box    = document.getElementById("log-box");
+  try {
+    const r = await fetch(`${PREFIX}/system/logs/data?source=${source}&lines=${lines}`);
+    if (!r.ok) { box.textContent = "Error al cargar."; return; }
+    const d = await r.json();
+    box.textContent = d.lines.length ? d.lines.join("\n") : "(sin contenido)";
+    box.scrollTop = box.scrollHeight;
+  } catch (e) {
+    box.textContent = "Error al cargar.";
+  }
+}
+
+document.getElementById("f-source").addEventListener("change", load);
+document.getElementById("f-lines").addEventListener("change", load);
+document.getElementById("btn-refresh").addEventListener("click", load);
+document.getElementById("f-auto").addEventListener("change", function () {
+  if (this.checked) {
+    timer = setInterval(load, 10000);
+  } else if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+});
+
+load();
+</script>
+{% endblock %}

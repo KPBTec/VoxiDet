@@ -5,6 +5,7 @@ from fastapi.responses import PlainTextResponse
 
 from app.config import settings
 from app.db.clients import get_client_by_install_token
+from app.db.settings import get_setting
 from app.core.agi_template import TEMPLATE
 
 _AGI_VERSION = hashlib.sha256(TEMPLATE.encode()).hexdigest()[:12]
@@ -15,12 +16,19 @@ router = APIRouter()
 _PLACEHOLDER = {"IP_VPS", "localhost", "tudominio"}
 
 
-def _resolve_server_url(request: Request) -> str:
+async def _resolve_server_url(request: Request) -> str:
     """
     Devuelve la URL base del servidor.
-    Prioridad: PUBLIC_URL configurado → URL del request actual.
-    Si PUBLIC_URL tiene valor de ejemplo, usa el request (auto-detect).
+    Prioridad: dominio configurado desde el panel (app_settings, MySQL) →
+    PUBLIC_URL de credentials.conf → URL del request actual (auto-detect).
+    El panel no puede escribir credentials.conf (env_file: en
+    docker-compose.yml nunca lo monta dentro del contenedor) — por eso el
+    override editable desde /system vive en MySQL, no en ese archivo.
     """
+    db_override = await get_setting("public_url")
+    if db_override:
+        return db_override.rstrip("/")
+
     pub = (settings.PUBLIC_URL or "").rstrip("/")
     if pub and not any(p in pub for p in _PLACEHOLDER):
         # Sin esquema (ej. PUBLIC_URL=10.100.10.15:8000 en credentials.conf,
@@ -53,7 +61,7 @@ async def install_agi(install_token: str, request: Request):
     if not client or not client["active"]:
         raise HTTPException(status_code=401, detail="Token inválido o cliente inactivo")
 
-    server_url = _resolve_server_url(request)
+    server_url = await _resolve_server_url(request)
     script = (TEMPLATE
         .replace("__SERVER__",  server_url)
         .replace("__APIKEY__",  client["api_key"])

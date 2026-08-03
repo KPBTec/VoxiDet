@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — VoxiDet{% endblock %}
+{% set active_page = 'dashboard' %}
+
+{% block head %}
+<style>
+.dash-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+.dash-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:1.1rem 1.25rem; }
+.dash-card .label { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin-bottom:.4rem; }
+.dash-card .value { font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:1.6rem; font-weight:700; line-height:1.1; }
+.dash-card .sub   { font-size:.72rem; color:var(--muted); margin-top:.3rem; }
+.dash-section-title { font-size:.8rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin:1.5rem 0 .75rem; }
+.bar-wrap { background:var(--bg); border-radius:6px; height:6px; margin-top:.6rem; overflow:hidden; }
+.bar-fill { height:100%; border-radius:6px; transition:width .4s; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Dashboard</h2>
+</div>
+
+<div class="dash-section-title">Salud del servidor</div>
+<div class="dash-grid">
+  <div class="dash-card">
+    <div class="label">Llamadas en proceso</div>
+    <div class="value" id="val-active" style="color:var(--signal);font-size:2rem;">{{ active_calls }}</div>
+    <div class="sub">Detectando ahora mismo</div>
+  </div>
+  <div class="dash-card">
+    <div class="label">CPU</div>
+    <div class="value" id="val-cpu">{{ cpu_percent }}%</div>
+    <div class="bar-wrap"><div class="bar-fill" id="bar-cpu"
+      style="width:{{ cpu_percent }}%;background:{% if cpu_percent > 80 %}var(--red){% elif cpu_percent > 60 %}var(--yellow){% else %}var(--green){% endif %};"></div></div>
+  </div>
+  <div class="dash-card">
+    <div class="label">RAM</div>
+    <div class="value" id="val-ram">{{ ram_percent }}%</div>
+    <div class="bar-wrap"><div class="bar-fill" id="bar-ram"
+      style="width:{{ ram_percent }}%;background:{% if ram_percent > 80 %}var(--red){% elif ram_percent > 60 %}var(--yellow){% else %}var(--green){% endif %};"></div></div>
+    <div class="sub" id="sub-ram">{{ ram_used_gb }} / {{ ram_total_gb }} GB</div>
+  </div>
+  <div class="dash-card">
+    <div class="label">Disco</div>
+    <div class="value" id="val-disk">{{ disk_percent }}%</div>
+    <div class="bar-wrap"><div class="bar-fill" id="bar-disk"
+      style="width:{{ disk_percent }}%;background:{% if disk_percent > 85 %}var(--red){% elif disk_percent > 70 %}var(--yellow){% else %}var(--green){% endif %};"></div></div>
+    <div class="sub" id="sub-disk">{{ disk_used_gb }} / {{ disk_total_gb }} GB</div>
+  </div>
+</div>
+
+<div class="dash-section-title">Hoy</div>
+<div class="dash-grid">
+  <div class="dash-card">
+    <div class="label">Llamadas</div>
+    <div class="value" id="val-total">{{ summary.total_calls }}</div>
+  </div>
+  <div class="dash-card">
+    <div class="label">Human</div>
+    <div class="value" id="val-human" style="color:var(--green);">{{ summary.human_count }}</div>
+  </div>
+  <div class="dash-card">
+    <div class="label">Voicemail</div>
+    <div class="value" id="val-voicemail" style="color:var(--red);">{{ summary.voicemail_count }}</div>
+  </div>
+  <div class="dash-card">
+    <div class="label">Unknown</div>
+    <div class="value" id="val-unknown" style="color:var(--muted2);">{{ summary.unknown_count }}</div>
+  </div>
+  <div class="dash-card">
+    <div class="label">Clientes activos</div>
+    <div class="value" id="val-clients">{{ active_clients }}</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PREFIX = "{{ admin_prefix }}";
+
+function colorFor(pct) {
+  return pct > 80 ? "var(--red)" : pct > 60 ? "var(--yellow)" : "var(--green)";
+}
+
+async function refresh() {
+  try {
+    const r = await fetch(PREFIX + "/dashboard/data");
+    if (!r.ok) return;
+    const d = await r.json();
+
+    document.getElementById("val-active").textContent = d.active_calls ?? 0;
+
+    const cpu = d.cpu_percent ?? 0;
+    document.getElementById("val-cpu").textContent = cpu.toFixed(1) + "%";
+    document.getElementById("bar-cpu").style.width = cpu + "%";
+    document.getElementById("bar-cpu").style.background = colorFor(cpu);
+
+    const ram = d.ram_percent ?? 0;
+    document.getElementById("val-ram").textContent = ram.toFixed(1) + "%";
+    document.getElementById("bar-ram").style.width = ram + "%";
+    document.getElementById("bar-ram").style.background = colorFor(ram);
+    document.getElementById("sub-ram").textContent = (d.ram_used_gb ?? 0) + " / " + (d.ram_total_gb ?? 0) + " GB";
+
+    const disk = d.disk_percent ?? 0;
+    document.getElementById("val-disk").textContent = disk.toFixed(1) + "%";
+    document.getElementById("bar-disk").style.width = disk + "%";
+    document.getElementById("sub-disk").textContent = (d.disk_used_gb ?? 0) + " / " + (d.disk_total_gb ?? 0) + " GB";
+
+    const s = d.summary || {};
+    document.getElementById("val-total").textContent     = s.total_calls ?? 0;
+    document.getElementById("val-human").textContent     = s.human_count ?? 0;
+    document.getElementById("val-voicemail").textContent = s.voicemail_count ?? 0;
+    document.getElementById("val-unknown").textContent   = s.unknown_count ?? 0;
+    document.getElementById("val-clients").textContent   = d.active_clients ?? 0;
+  } catch (e) {}
+}
+
+setInterval(refresh, 30000);
+</script>
+{% endblock %}

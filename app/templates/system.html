@@ -34,6 +34,22 @@
   <span class="live-badge">En vivo</span>
 </div>
 
+{# ── Dominio público ── #}
+<div class="card">
+  <div style="font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;
+              letter-spacing:.05em;margin-bottom:.75rem;">Dominio público</div>
+  <p class="muted" style="font-size:.8rem;margin-bottom:.75rem;">
+    URL que se hornea en el AGI cuando un nodo Asterisk lo descarga o actualiza
+    (<code>/install/&lt;token&gt;</code>, auto-update). Solo afecta AGIs descargados o
+    actualizados de acá en más — los nodos ya instalados siguen con la URL vieja
+    hasta su próximo auto-update.
+  </p>
+  <form method="post" action="{{ admin_prefix }}/system/public-url" style="display:flex;gap:.6rem;max-width:520px;">
+    <input type="text" name="public_url" value="{{ public_url }}" placeholder="https://tu-dominio.com" style="flex:1;">
+    <button type="submit" class="btn btn-primary">Guardar</button>
+  </form>
+</div>
+
 {# ── Llamadas activas ── #}
 <div class="sys-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:1rem;">
   <div class="sys-card" id="card-active">

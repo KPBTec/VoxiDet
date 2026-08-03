@@ -94,7 +94,11 @@ body.with-sidebar { display: flex; min-height: 100vh; }
   gap: .65rem;
   padding: 1.35rem 1.25rem 1.1rem;
   border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+  transition: opacity .15s;
 }
+.sidebar-brand:hover { opacity: .85; }
 
 .sidebar-logo {
   width: 30px;
@@ -140,6 +144,44 @@ body.with-sidebar { display: flex; min-height: 100vh; }
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* ── Menú acordeón — un grupo abierto a la vez (mismo comportamiento que
+   Sidebar.tsx de VoxiKam) ── */
+.sidebar-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .8rem 1.25rem .5rem;
+  font-size: .63rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color .15s;
+}
+.sidebar-section-toggle:hover { color: var(--text); }
+.sidebar-section-toggle .chevron { width: 12px; height: 12px; transition: transform .2s; }
+.sidebar-section-toggle.open .chevron { transform: rotate(90deg); }
+
+.sidebar-group {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .25s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar-group.open { max-height: 600px; }
+
+.sidebar-link-pinned {
+  margin-top: .5rem;
+  font-weight: 600;
 }
 
 .sidebar-link {
@@ -216,7 +258,7 @@ body.with-sidebar { display: flex; min-height: 100vh; }
    cortas, sin afectar páginas largas (mismo patrón que VoxiKam: flex-col +
    flex-1 en el layout admin). */
 .main-content { margin-left: 228px; flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.container    { max-width: 1280px; margin: 0 auto; padding: 1.75rem 2rem; flex: 1 0 auto; width: 100%; }
+.container    { max-width: 1520px; margin: 0; padding: 1.75rem 2rem; flex: 1 0 auto; width: 100%; }
 
 /* Sin sidebar (login) — quitar margin y container */
 body:not(.with-sidebar) .main-content { margin-left: 0; }
@@ -643,13 +685,21 @@ code {
 .riveted::after  { right: 8px; }
 
 /* ── Selector de tema (footer del sidebar) ── */
-.theme-picker { display: flex; gap: .5rem; padding-bottom: .3rem; }
+.theme-picker-wrap { padding-bottom: .3rem; }
+.theme-picker-label {
+  font-size: .63rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: .4rem;
+}
+.theme-picker { display: flex; gap: .55rem; }
 .theme-swatch {
-  width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
+  width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
   border: 2px solid; padding: 0; box-shadow: var(--shadow-sm);
-  transition: transform .15s;
+  transition: transform .15s, box-shadow .15s;
 }
 .theme-swatch:hover { transform: scale(1.15); }
+.theme-swatch.active {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--signal);
+}
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }

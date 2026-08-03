@@ -47,6 +47,7 @@ from app.db.logs import (
 from app.db.keywords import ensure_table as ensure_keywords_table
 from app.db.client_keywords import ensure_client_keywords_table
 from app.db.provider_stats import ensure_provider_stats_table
+from app.db.settings import ensure_app_settings_table
 
 log = logging.getLogger("voxidet.migrations")
 
@@ -78,6 +79,7 @@ MIGRATIONS = [
     ("1.12.0", lambda: _run_all(ensure_mode_transcript_columns, ensure_layer2_calls_column)),
     ("1.13.0", ensure_amd_bias_column),
     ("1.16.0", ensure_provider_keys_table),
+    ("1.22.0", ensure_app_settings_table),
 ]
 
 

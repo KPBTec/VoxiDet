@@ -154,7 +154,7 @@ async def amd_update(
     No consume límite diario.
     """
     from app.api.install import _resolve_server_url
-    server_url = _resolve_server_url(request)
+    server_url = await _resolve_server_url(request)
     script = (TEMPLATE
         .replace("__SERVER__",  server_url)
         # client["api_key"] no existe — get_client_by_apikey() no selecciona

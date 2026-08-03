@@ -1,10 +1,11 @@
 import psutil
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from app.api.admin.session import require_session, get_session
 from app.api.admin._templates import templates as _templates
 from app.config import settings
+from app.db.settings import get_setting, set_setting
 
 router = APIRouter()
 
@@ -51,13 +52,34 @@ def _get_stats() -> dict:
 async def system_page(request: Request, _=Depends(require_session)):
     from app.api.amd import active_calls
     stats = _get_stats()
+    public_url = await get_setting("public_url") or settings.PUBLIC_URL
     return _templates.TemplateResponse(request, "system.html", {
         "request":      request,
         "admin_prefix": settings.ADMIN_PREFIX,
         "active_page":  "system",
         "stats":        stats,
         "active_calls": active_calls,
+        "public_url":   public_url,
     })
+
+
+@router.post("/system/public-url")
+async def update_public_url(
+    request: Request,
+    public_url: str = Form(...),
+    _=Depends(require_session),
+):
+    """Dominio/IP que se hornea en el AGI descargado (/install/<token>,
+    /amd/update) — vive en MySQL, no en credentials.conf (ver app/db/settings.py:
+    el contenedor recibe ese archivo vía env_file:, nunca montado como
+    filesystem, la app no puede reescribirlo). Solo afecta AGIs que se
+    descarguen o actualicen de acá en más — los nodos ya instalados con la
+    URL vieja siguen así hasta su próximo auto-update."""
+    public_url = public_url.strip().rstrip("/")
+    if public_url and "://" not in public_url:
+        public_url = "http://" + public_url
+    await set_setting("public_url", public_url)
+    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/system", status_code=302)
 
 
 @router.get("/system/data")

@@ -9,6 +9,15 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.22.0 — 2026-08-03
+
+- Nuevo: página de **Dashboard** al entrar al panel, con la salud del servidor (CPU/RAM/disco) y un resumen de las detecciones de hoy (llamadas, HUMAN/VOICEMAIL/UNKNOWN, clientes activos).
+- Nuevo: **Sistema → Logs backend**, para ver los logs técnicos del servidor directamente desde el panel, sin necesidad de acceso por consola.
+- Nuevo: el dominio/URL pública del servidor ahora se puede configurar desde **Sistema**, sin editar archivos de configuración a mano.
+- Mejorado: el menú lateral ahora se organiza en acordeón (un grupo a la vez) y el logo de arriba es un acceso directo al Dashboard.
+
+---
+
 ## v1.21.4 — 2026-08-03
 
 - Corregido un error crítico introducido en la actualización anterior que hacía fallar por completo el panel administrativo (error 500 en todas las páginas). Recomendamos actualizar cuanto antes si venías de la v1.21.3 o v1.19.3-v1.21.2.
