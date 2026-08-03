@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Martian+Mono:wght@400;500;600;700&family=Big+Shoulders+Display:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/admin.css">
+  <link rel="stylesheet" href="/static/admin.css?v={{ version }}">
   <!-- Anti-flash: fija data-theme antes de pintar, mismo mecanismo que
        ThemePicker.tsx de VoxiKam (ahí persiste por cuenta en DB; acá no hay
        cuentas individuales por admin, así que localStorage es la fuente). -->
@@ -71,10 +71,22 @@
       <div class="theme-picker-wrap">
         <div class="theme-picker-label">Tema</div>
         <div class="theme-picker" role="group" aria-label="Tema">
-          <button type="button" class="theme-swatch" data-theme-value="bronce" title="Bronce" style="background:#16110c;border-color:#dd8b3d"></button>
-          <button type="button" class="theme-swatch" data-theme-value="papel" title="Papel" style="background:#f5f0e6;border-color:#dd8b3d"></button>
-          <button type="button" class="theme-swatch" data-theme-value="fosforo" title="Fósforo" style="background:#000;border-color:#33cc66"></button>
-          <button type="button" class="theme-swatch" data-theme-value="vidrio" title="Vidrio" style="background:#f5f5f7;border-color:#dd8b3d"></button>
+          <button type="button" class="theme-swatch-item" data-theme-value="bronce" title="Bronce">
+            <span class="theme-swatch" style="background:#16110c;border-color:#dd8b3d"></span>
+            <span class="theme-swatch-label">Bronce</span>
+          </button>
+          <button type="button" class="theme-swatch-item" data-theme-value="papel" title="Papel">
+            <span class="theme-swatch" style="background:#f5f0e6;border-color:#dd8b3d"></span>
+            <span class="theme-swatch-label">Papel</span>
+          </button>
+          <button type="button" class="theme-swatch-item" data-theme-value="fosforo" title="Fósforo">
+            <span class="theme-swatch" style="background:#000;border-color:#33cc66"></span>
+            <span class="theme-swatch-label">Fósforo</span>
+          </button>
+          <button type="button" class="theme-swatch-item" data-theme-value="vidrio" title="Vidrio">
+            <span class="theme-swatch" style="background:#f5f5f7;border-color:#dd8b3d"></span>
+            <span class="theme-swatch-label">Vidrio</span>
+          </button>
         </div>
       </div>
       <div class="sidebar-user">
@@ -113,7 +125,7 @@
   {% if show_nav is not false %}
   <script>
     (function () {
-      var swatches = document.querySelectorAll('.theme-swatch');
+      var swatches = document.querySelectorAll('.theme-swatch-item');
       var current = document.documentElement.getAttribute('data-theme') || 'bronce';
 
       function markActive(theme) {

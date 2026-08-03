@@ -9,6 +9,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.22.1 — 2026-08-03
+
+- Corregido: algunos cambios visuales de la actualización anterior no se veían reflejados en el navegador por una cache de archivos desactualizada — ahora se refrescan solos en cada actualización.
+- Mejorado: el selector de tema ahora muestra el nombre de cada opción (antes solo aparecía al pasar el mouse).
+- Mejorado: el campo de dominio público en Sistema siempre muestra la URL completa, sin ambigüedad sobre si hace falta escribir "http://" a mano.
+
+---
+
 ## v1.22.0 — 2026-08-03
 
 - Nuevo: página de **Dashboard** al entrar al panel, con la salud del servidor (CPU/RAM/disco) y un resumen de las detecciones de hoy (llamadas, HUMAN/VOICEMAIL/UNKNOWN, clientes activos).

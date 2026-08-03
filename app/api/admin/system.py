@@ -52,7 +52,12 @@ def _get_stats() -> dict:
 async def system_page(request: Request, _=Depends(require_session)):
     from app.api.amd import active_calls
     stats = _get_stats()
-    public_url = await get_setting("public_url") or settings.PUBLIC_URL
+    public_url = (await get_setting("public_url") or settings.PUBLIC_URL or "").strip()
+    # Mostrar siempre con esquema — si viene de credentials.conf sin "http://"
+    # (ej. "10.100.10.15:8000"), mismo auto-fix que ya se aplica al guardar,
+    # para que el campo nunca muestre una URL ambigua sobre si necesita http(s)://.
+    if public_url and "://" not in public_url:
+        public_url = "http://" + public_url
     return _templates.TemplateResponse(request, "system.html", {
         "request":      request,
         "admin_prefix": settings.ADMIN_PREFIX,
