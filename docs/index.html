@@ -8,18 +8,21 @@
 <meta property="og:description" content="Detección de buzón de voz en 2 capas: energía + transcripción real como fallback. Para marcadores Vicidial/Asterisk.">
 <meta property="og:type" content="website">
 <title>VoxiDet — AMD con IA para Vicidial/Asterisk</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23070b14'/><text y='.72em' x='.16em' font-size='58'>🎙</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 16'><rect width='20' height='16' rx='3' fill='%2316110c'/><rect x='1' y='9' width='2.2' height='5' rx='1.1' fill='white' opacity='0.4'/><rect x='4.6' y='5.5' width='2.2' height='8.5' rx='1.1' fill='white' opacity='0.65'/><rect x='8.7' y='2' width='2.2' height='12' rx='1.1' fill='%23dd8b3d'/><rect x='12.8' y='5.5' width='2.2' height='8.5' rx='1.1' fill='white' opacity='0.65'/><rect x='16.5' y='9' width='2.2' height='5' rx='1.1' fill='white' opacity='0.4'/></svg>">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Martian+Mono:wght@400;500;600;700&family=Big+Shoulders+Display:wght@600;700;800&display=swap');
 
 :root {
-  --ink:       #070b14;
-  --surface:   #0d1526;
-  --surface-2: #111d35;
-  --line:      #1a2744;
-  --line-2:    #253660;
-  --text:      #e7ecf3;
-  --muted:     #5b7390;
+  /* Voxi Design System v2 — ver _patterns/PATTERN_VOXI_DESIGN.md + PATTERN_VOXI_LANDING.md.
+     Mismos tokens que el panel admin real (app/static/admin.css) — la landing es una
+     ventana al producto, no una pieza de marketing con un tema propio. */
+  --ink:       #16110c;
+  --surface:   #221a12;
+  --surface-2: #2e2317;
+  --line:      #43331f;
+  --line-2:    #5c4527;
+  --text:      #f0e6d2;
+  --muted:     #9c876c;
   --signal:     #dd8b3d;
   --signal-dim: #c17429;
   --signal-100: #fbe0c4;
@@ -29,14 +32,16 @@
   --info:   #6b8fb5;
   --radius:    12px;
   --radius-sm: 8px;
-  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-ui:      'Public Sans', -apple-system, sans-serif;
+  --mono:         'Martian Mono', ui-monospace, monospace;
+  --font-display: 'Big Shoulders Display', var(--font-ui);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 
 body {
-  font-family: 'Manrope', -apple-system, sans-serif;
+  font-family: var(--font-ui);
   font-size: 15px;
   line-height: 1.65;
   color: var(--text);
@@ -51,17 +56,30 @@ a:hover { color: #eba456; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .ico { width: 20px; height: 20px; flex-shrink: 0; }
 
+/* ── Motivo "instrumento de rack" — reservado a las superficies de marca
+   (nav, hero card), no a toda la página. Ver PATTERN_VOXI_DESIGN.md ── */
+.riveted { position: relative; }
+.riveted::before, .riveted::after {
+  content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--line-2), var(--surface-2));
+  box-shadow: 0 0 0 1px rgba(0,0,0,.5); top: 10px; z-index: 1;
+}
+.riveted::before { left: 10px; }
+.riveted::after  { right: 10px; }
+
 /* ── NAV ──────────────────────────────────────────────────────────── */
 nav {
   position: sticky; top: 0; z-index: 100;
-  background: rgba(7,11,20,0.85);
+  background: rgba(22,17,12,0.88);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
   padding: 0 32px;
   display: flex; align-items: center; justify-content: space-between;
   height: 60px;
 }
-.nav-logo { display: flex; align-items: center; }
+.nav-logo { display: flex; align-items: center; gap: 10px; }
+.nav-wordmark { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .03em; font-size: 19px; font-weight: 700; color: var(--text); }
+.nav-wordmark em { font-style: normal; color: var(--signal); }
 .nav-links { display: flex; gap: 4px; align-items: center; }
 .nav-links a:not(.nav-cta) {
   color: var(--muted); font-size: 13px; font-weight: 600;
@@ -90,8 +108,9 @@ section:last-of-type { border-bottom: none; }
 }
 .section-tag::before { content: ''; width: 16px; height: 1px; background: var(--signal); }
 h2.section-title {
-  font-size: clamp(26px, 3.6vw, 38px); font-weight: 800;
-  letter-spacing: -0.7px; margin-bottom: 14px; color: var(--text);
+  font-family: var(--font-display); text-transform: uppercase; letter-spacing: .01em;
+  font-size: clamp(26px, 3.6vw, 40px); font-weight: 700;
+  margin-bottom: 14px; color: var(--text);
 }
 .section-lead { color: var(--muted); font-size: 15.5px; max-width: 640px; line-height: 1.7; }
 .section-lead a { text-decoration: underline; text-underline-offset: 2px; }
@@ -104,7 +123,7 @@ h2.section-title {
   content: '';
   position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse 900px 480px at 50% -10%, rgba(221,139,61,0.14) 0%, transparent 65%),
+    radial-gradient(ellipse 900px 480px at 50% -10%, rgba(221,139,61,0.16) 0%, transparent 65%),
     linear-gradient(180deg, transparent 0%, var(--ink) 100%);
   pointer-events: none;
 }
@@ -121,7 +140,7 @@ h2.section-title {
 .hero-eyebrow::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px rgba(34,197,94,0.18); }
 .hero h1 {
   font-size: clamp(34px, 4.2vw, 48px);
-  font-weight: 800; letter-spacing: -1.3px; line-height: 1.1;
+  font-weight: 800; letter-spacing: -1.1px; line-height: 1.12;
   margin-bottom: 20px; color: var(--text);
 }
 .hero h1 em { font-style: normal; color: var(--signal); }
@@ -133,7 +152,7 @@ h2.section-title {
   font-weight: 700; cursor: pointer; transition: all .15s;
   text-decoration: none !important; border: 1px solid transparent;
 }
-.btn-primary { background: var(--signal); color: #1a1002; }
+.btn-primary { background: var(--signal); color: var(--ink); }
 .btn-primary:hover { background: #e79a4f; transform: translateY(-1px); }
 .btn-outline { background: transparent; color: var(--text); border-color: var(--line-2); }
 .btn-outline:hover { border-color: var(--signal); background: var(--surface); transform: translateY(-1px); }
@@ -141,7 +160,9 @@ h2.section-title {
 .hero-stat .num { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--text); }
 .hero-stat .lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
-/* ── HERO: LIVE DETECTIONS CARD (signature element) ──────────────── */
+/* ── HERO: LIVE DETECTIONS CARD (firma visual — placeholder animado, ver
+   nota en README sobre reemplazarlo por una captura real per
+   PATTERN_VOXI_LANDING.md v2) ── */
 .det-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: 0 20px 60px -20px rgba(0,0,0,0.6); }
 .det-chrome { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
 .det-dots { display: flex; gap: 6px; }
@@ -265,7 +286,7 @@ details.release-card[open] .release-chevron { transform: rotate(180deg); }
 .install-table td code { font-family: var(--mono); font-size: 12px; background: var(--surface-2); padding: 2px 7px; border-radius: 4px; color: var(--signal); }
 
 /* ── FOOTER ───────────────────────────────────────────────────────── */
-footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text-align: center; }
+footer { background: #0e0a06; color: var(--muted); padding: 48px 32px 32px; text-align: center; }
 .footer-sub { font-size: 13px; margin: 14px 0 22px; color: var(--muted); }
 .footer-links { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px; }
 .footer-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: var(--radius-sm); transition: color .15s, background .15s; }
@@ -296,11 +317,13 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
 <nav>
   <a href="https://voxidet.kpbtec.com" class="nav-logo">
     <img src="logo.svg" alt="VoxiDet" style="height:26px;width:auto;">
+    <span class="nav-wordmark">Voxi<em>Det</em></span>
   </a>
   <div class="nav-links">
     <a href="#features">Features</a>
     <a href="#how">Cómo funciona</a>
     <a href="#admin">Panel</a>
+    <a href="#security">Seguridad</a>
     <a href="#releases">Releases</a>
     <a href="#install">Instalar</a>
     <a href="https://t.me/sktcod" class="nav-cta" target="_blank">
@@ -324,7 +347,7 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
       <div class="hero-buttons">
         <a href="https://github.com/KPBTec/VoxiDet/archive/refs/heads/main.zip" class="btn btn-primary" target="_blank">
           <svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-          Descargar v1.13.0
+          Descargar v1.22.2
         </a>
         <a href="https://github.com/KPBTec/VoxiDet" class="btn btn-outline" target="_blank">
           <svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.016-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.605-2.665-.303-5.467-1.332-5.467-5.93 0-1.31.469-2.38 1.235-3.22-.124-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.3 1.23A11.5 11.5 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.29-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.873.118 3.176.77.84 1.233 1.91 1.233 3.22 0 4.61-2.807 5.624-5.48 5.92.43.372.823 1.102.823 2.222 0 1.604-.015 2.896-.015 3.286 0 .32.216.694.825.576C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -334,11 +357,11 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
       <div class="hero-stats">
         <div class="hero-stat"><div class="num mono">2 capas</div><div class="lbl">Energía + transcripción real</div></div>
         <div class="hero-stat"><div class="num mono">7</div><div class="lbl">Proveedores ASR con fallback</div></div>
-        <div class="hero-stat"><div class="num mono">v1.13.0</div><div class="lbl">Versión actual</div></div>
+        <div class="hero-stat"><div class="num mono">v1.22.2</div><div class="lbl">Versión actual</div></div>
       </div>
     </div>
 
-    <div class="det-card">
+    <div class="det-card riveted">
       <div class="det-chrome">
         <div class="det-dots"><span></span><span></span><span></span></div>
         <div class="det-chrome-title mono">Logs en vivo · Campaña B2B</div>
@@ -371,7 +394,7 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
       <div class="why-card">
         <div class="why-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></div>
         <h3>7 proveedores ASR con fallback</h3>
-        <p>Deepgram, Groq, Fireworks, Together, OpenAI, y Vosk/Sherpa en local (costo $0). Si el proveedor configurado falla, reintenta automáticamente con otro activo.</p>
+        <p>Deepgram, Groq, Fireworks, Together, OpenAI, y Vosk/Sherpa en local (costo $0, incluye Whisper large-v3 completo como opción de máxima precisión). Si el proveedor configurado falla, reintenta automáticamente con otro activo.</p>
       </div>
       <div class="why-card">
         <div class="why-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M6 12h.01M6 16h.01M12 8h6M12 12h6M12 16h4"/></svg></div>
@@ -449,18 +472,22 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
   <div class="section-inner">
     <div class="section-tag">Panel de Administración</div>
     <h2 class="section-title">Todo el sistema, desde un solo panel</h2>
-    <p class="section-lead">Clientes, proveedores, firewall y calidad de detección — nueve secciones, sin tocar Docker ni Asterisk para el día a día.</p>
+    <p class="section-lead">Dashboard, clientes, proveedores, firewall y calidad de detección — sin tocar Docker ni Asterisk para el día a día.</p>
 
     <div class="modules-grid">
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></div><div class="mod-name">Dashboard</div><div class="mod-desc">Salud del servidor (CPU/RAM/disco) y resumen del día — llamadas, HUMAN/VOICEMAIL, clientes activos.</div></div>
       <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="mod-name">Clientes</div><div class="mod-desc">CRUD, API keys, toggle batch/stream por cliente, límites diarios de consumo.</div></div>
-      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="mod-name">Logs en vivo</div><div class="mod-desc">Stream SSE de cada detección en tiempo real: resultado, capa, proveedor, latencia y transcripción.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="mod-name">Logs en vivo</div><div class="mod-desc">Stream de cada detección en tiempo real: resultado, capa, proveedor, latencia y transcripción.</div></div>
       <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg></div><div class="mod-name">Keywords</div><div class="mod-desc">Palabras y frases globales o por cliente que ajustan la clasificación de la capa 2.</div></div>
-      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M6 12h.01M6 16h.01M12 8h6M12 12h6M12 16h4"/></svg></div><div class="mod-name">Proveedores</div><div class="mod-desc">API keys de los 7 proveedores ASR de capa 2, con orden de fallback configurable.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h.79a4.5 4.5 0 1 1 0 9z"/></svg></div><div class="mod-name">Proveedores</div><div class="mod-desc">Activo/inactivo y modelo actual de los 7 proveedores ASR de capa 2, con orden de fallback configurable.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div class="mod-name">API Keys</div><div class="mod-desc">Cargá y rotá las keys de cada proveedor cloud desde el panel, cifradas en reposo — sin editar archivos.</div></div>
       <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="mod-name">Consumo</div><div class="mod-desc">Costo estimado en USD por proveedor — visibilidad total del gasto en transcripción.</div></div>
       <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/></svg></div><div class="mod-name">Firewall</div><div class="mod-desc">Reglas ALLOW/DENY por IP o servicio, más IPs baneadas por fail2ban (ver/desbanear).</div></div>
       <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></div><div class="mod-name">Detecciones</div><div class="mod-desc">Gráfico por minuto, hora o día — resultado y cliente, para ver tendencias de un vistazo.</div></div>
       <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></div><div class="mod-name">Reportes</div><div class="mod-desc">Resumen día o mes con fila TOTAL; detalle por hora con %HUMAN/VM/UNK, latencia y llamadas lentas.</div></div>
-      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg></div><div class="mod-name">Sistema</div><div class="mod-desc">CPU, RAM, disco y red por interfaz, más llamadas AMD en proceso — auto-refresh cada 3s.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg></div><div class="mod-name">Sistema</div><div class="mod-desc">CPU, RAM, disco y red por interfaz, más llamadas AMD en proceso y el dominio público editable.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 9 5 12 8 15"/><polyline points="16 9 19 12 16 15"/><line x1="13" y1="6" x2="11" y2="18"/></svg></div><div class="mod-name">Logs backend</div><div class="mod-desc">Logs técnicos de la propia API (errores, warnings, requests) sin necesidad de acceso por consola.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="mod-name">Usuarios</div><div class="mod-desc">Múltiples cuentas de administrador, cada una con su propia contraseña.</div></div>
     </div>
   </div>
 </section>
@@ -469,7 +496,7 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
 <section id="security" class="on-surface">
   <div class="section-inner">
     <div class="section-tag">Seguridad</div>
-    <h2 class="section-title">Cinco capas, activas por defecto</h2>
+    <h2 class="section-title">Capas activas por defecto</h2>
     <p class="section-lead">Nada de esto requiere configuración adicional al instalar.</p>
 
     <div class="sec-layers">
@@ -490,8 +517,8 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
       <div class="sec-layer">
         <div class="sec-dot"><span>3</span></div>
         <div class="sec-content">
-          <h4><svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>Rate limiting</h4>
-          <p>120 req/min en <code>/amd</code>, 60 req/min en <code>/admin/</code> — protege contra abuso sin afectar tráfico legítimo.</p>
+          <h4><svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>Rate limiting + security headers</h4>
+          <p>120 req/min en <code>/amd</code>, 60 req/min en <code>/admin/</code> — protege contra abuso sin afectar tráfico legítimo. CSP, X-Frame-Options y demás headers estándar en cada respuesta.</p>
         </div>
       </div>
       <div class="sec-layer">
@@ -506,6 +533,13 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
         <div class="sec-content">
           <h4><svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>nftables + fail2ban</h4>
           <p>Firewall gestionado desde el panel, más bloqueo automático de fuerza bruta en sshd y en la API — sin editar reglas a mano.</p>
+        </div>
+      </div>
+      <div class="sec-layer">
+        <div class="sec-dot"><span>6</span></div>
+        <div class="sec-content">
+          <h4><svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Secretos cifrados en reposo</h4>
+          <p>API keys de proveedores ASR guardadas con Fernet — la clave de cifrado vive fuera de la base de datos, un dump de MySQL solo no alcanza para leerlas.</p>
         </div>
       </div>
     </div>
@@ -523,7 +557,75 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
 
       <details class="release-card" open>
         <summary class="release-header">
-          <span class="release-tag latest mono">v1.13.0 latest</span>
+          <span class="release-tag latest mono">v1.22.0–v1.22.2 latest</span>
+          <span class="release-title">Dashboard, logs de backend desde el panel, dominio editable, landing renovada</span>
+          <span class="release-date mono">2026-08-03</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>Nueva pantalla de inicio "Dashboard" — salud del servidor (CPU/RAM/disco) y resumen del día (llamadas, HUMAN/VOICEMAIL/UNKNOWN, clientes activos), auto-refresh cada 30s</li>
+            <li>Nuevo "Sistema → Logs backend" — logs técnicos de la API desde el panel, sin necesidad de acceso por consola</li>
+            <li>El dominio público que se hornea en el AGI ahora se configura desde el panel (Sistema), sin editar archivos a mano</li>
+            <li>Menú lateral en acordeón — un grupo abierto a la vez</li>
+            <li>Esta misma landing pública migrada al Voxi Design System v2 (bronce/grafito, Public Sans/Martian Mono) e historial de releases actualizado — antes desactualizado desde v1.13.0</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.19.3–v1.21.4</span>
+          <span class="release-title">Rediseño visual completo (Voxi Design System v2), migraciones versionadas, hardening</span>
+          <span class="release-date mono">2026-08-03</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>Migración a la v2 del design system compartido con VoxiKam: paleta bronce/grafito, tipografía Public Sans + Martian Mono, selector de 4 temas (Bronce/Papel/Fósforo/Vidrio)</li>
+            <li>Motor de migraciones de schema versionado (reemplaza 20 funciones sueltas que corrían en cada arranque)</li>
+            <li>Security headers completos (CSP, Permissions-Policy), healthcheck por contenedor en el instalador, dependencias actualizadas por CVEs conocidos</li>
+            <li>Sidebar data-driven, badges de estado centralizados, Chart.js vendorizado localmente (sin depender de un CDN externo)</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.16.0–v1.19.2</span>
+          <span class="release-title">Gestión de API keys desde el panel + Whisper large-v3 completo opcional</span>
+          <span class="release-date mono">2026-07-21 → 22</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>Cargá, rotá y desactivá API keys de los proveedores ASR directo desde el panel — cifradas en reposo, nunca se vuelven a mostrar en texto plano</li>
+            <li>Página propia para API Keys + sidebar reorganizado por función (Operación/Detección/Sistema)</li>
+            <li>Nuevo proveedor local opcional: Whisper large-v3 completo (más preciso, más lento) — nunca se usa como fallback automático</li>
+            <li>Fix crítico: el modo Streaming ignoraba las keys/modelos configurados desde el panel — solo Batch los respetaba</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.13.1–v1.15.1</span>
+          <span class="release-title">Correcciones de rotación de keys bajo alto volumen + reportes por día y cliente</span>
+          <span class="release-date mono">2026-07-04 → 20</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>Corregida la rotación de keys de Groq y otros proveedores en modo Batch — antes ignoraban el modelo configurado y no repartían la carga entre keys</li>
+            <li>Coordinación real entre workers para no exceder el límite de requests por minuto de cada proveedor</li>
+            <li>Nuevo en Reportes: detalle por día y cliente, y ranking de transcripciones de buzón de voz más repetidas</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.13.0</span>
           <span class="release-title">amd_bias por cliente — deja de asumir VOICEMAIL a ciegas en casos ambiguos</span>
           <span class="release-date mono">2026-07-04</span>
           <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
@@ -533,46 +635,30 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
             <li>Nuevo selector "Conservador / Agresivo" por cliente en <code>/admin/clients</code> — en transcripciones ambiguas de capa 2 (sin ninguna keyword clara), Agresivo devuelve <code>UNKNOWN</code> en vez de asumir <code>VOICEMAIL</code></li>
             <li>Corrige un sesgo real: con más agentes conectados simultáneamente, el audio con más ruido/cruce cae más seguido en esa ambigüedad, convirtiendo humanos reales en falsos VOICEMAIL</li>
             <li>Requiere ajustar el dialplan del cliente para que <code>UNKNOWN</code> transfiera al agente — si no, el modo Agresivo no cambia nada en la práctica</li>
-            <li>Aplica tanto a modo batch como Stream</li>
           </ul>
         </div>
       </details>
 
       <details class="release-card">
         <summary class="release-header">
-          <span class="release-tag mono">v1.12.5–v1.12.6</span>
-          <span class="release-title">Deploy más tolerante a fallos + landing pública nueva</span>
+          <span class="release-tag mono">v1.12.0–v1.12.6</span>
+          <span class="release-title">Reorganización de schema, fix crítico de handshake en Stream, landing pública</span>
           <span class="release-date mono">2026-07-02 → 04</span>
-          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </summary>
-        <div class="release-body">
-          <ul>
-            <li>Un healthcheck fallido ya no corta todo el deploy — degrada igual que VoxiKam en vez de abortar</li>
-            <li>Generación de <code>credentials.conf</code> unificada con VoxiKam (heredoc, sin <code>.example</code>)</li>
-            <li>Nueva landing pública en <code>docs/index.html</code> (esta página) — no existía antes</li>
-          </ul>
-        </div>
-      </details>
-
-      <details class="release-card">
-        <summary class="release-header">
-          <span class="release-tag mono">v1.12.0–v1.12.2</span>
-          <span class="release-title">Reorganización de schema + fix crítico de handshake en modo Stream</span>
-          <span class="release-date mono">2026-07-02</span>
           <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
         </summary>
         <div class="release-body">
           <ul>
             <li><code>mode</code> y <code>transcript</code> dejan de vivir sobrecargados en <code>param3</code> — columnas dedicadas</li>
             <li>Fix crítico: <code>Sec-WebSocket-Key</code> se generaba con el alfabeto incorrecto — ~50% de los handshakes de modo Stream eran rechazados con 400, cayendo a batch en silencio</li>
+            <li>Deploy más tolerante a fallos (degrada en vez de abortar) + esta misma landing pública, nueva en esa versión</li>
           </ul>
         </div>
       </details>
 
       <details class="release-card">
         <summary class="release-header">
-          <span class="release-tag mono">v1.11.0–v1.11.6</span>
-          <span class="release-title">Serie de fixes críticos: AMDSTATUS vacío, Python 3.6, credentials.conf</span>
+          <span class="release-tag mono">v1.9.0–v1.11.6</span>
+          <span class="release-title">Serie de fixes críticos: AMDSTATUS vacío, Python 3.6, autotuneo de recursos</span>
           <span class="release-date mono">2026-07-01</span>
           <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
         </summary>
@@ -580,57 +666,25 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
           <ul>
             <li>Fix crítico: auto-actualización del AGI dejaba <code>AMDSTATUS</code> vacío en el 100% de las llamadas</li>
             <li>Causa raíz real: sintaxis <code>bytes | None</code> no corre en Python 3.6 (las cajas Asterisk lo usan) — sin error de sintaxis local, rompía en runtime</li>
-            <li><code>PUBLIC_URL</code> sin esquema (<code>http://</code>) rompía todas las llamadas HTTP del AGI en silencio</li>
-            <li>Migración automática de <code>.env</code> viejo → <code>credentials.conf</code> — sin esto, un servidor ya instalado perdía la conexión a MySQL</li>
+            <li>Autotuneo de recursos (workers, memoria) según CPU/RAM reales del host, también en cada arranque</li>
+            <li>Instalación interactiva de <code>credentials.conf</code> en la primera corrida</li>
           </ul>
         </div>
       </details>
 
       <details class="release-card">
         <summary class="release-header">
-          <span class="release-tag mono">v1.9.0–v1.10.0</span>
-          <span class="release-title">Autotuneo de recursos + instalación interactiva</span>
-          <span class="release-date mono">2026-07-01</span>
-          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </summary>
-        <div class="release-body">
-          <ul>
-            <li>Autotuneo de recursos también en cada arranque del sistema, no solo al correr <code>deploy.sh</code></li>
-            <li>Primera instalación genera <code>credentials.conf</code> de forma interactiva (mismo patrón que VoxiKam)</li>
-          </ul>
-        </div>
-      </details>
-
-      <details class="release-card">
-        <summary class="release-header">
-          <span class="release-tag mono">v1.6.0–v1.8.3</span>
-          <span class="release-title">Performance bajo carga alta (150-200 agentes) + detección experimental de beep</span>
-          <span class="release-date mono">2026-07-01</span>
-          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </summary>
-        <div class="release-body">
-          <ul>
-            <li>Fix de contención de locks en <code>daily_usage</code> y <code>provider_stats</code> bajo carga alta (150-200 agentes concurrentes)</li>
-            <li>Modelo Vosk compartido entre workers (<code>gunicorn --preload</code>) — dejó de duplicarse por worker</li>
-            <li>Cliente HTTP compartido para las APIs de transcripción — antes se creaba uno nuevo por request</li>
-            <li>Nuevo (experimental): detección de tono de beep de buzón, solo para calibrar — no participa aún en la decisión</li>
-          </ul>
-        </div>
-      </details>
-
-      <details class="release-card">
-        <summary class="release-header">
-          <span class="release-tag mono">v1.5.0–v1.5.1</span>
-          <span class="release-title">fail2ban, Voxi Design System y firewall unificado con VoxiKam</span>
+          <span class="release-tag mono">v1.5.0–v1.8.3</span>
+          <span class="release-title">fail2ban, Voxi Design System, performance bajo carga alta (150-200 agentes)</span>
           <span class="release-date mono">2026-07-01</span>
           <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
         </summary>
         <div class="release-body">
           <ul>
             <li>fail2ban (sshd + rechazos de la API) — ver/desbanear IPs desde Firewall en el panel</li>
-            <li>Paleta unificada con VoxiKam bajo el Voxi Design System</li>
-            <li>Firewall refactorizado a fragmento único (mismo patrón que VoxiKam, no una tabla aparte)</li>
-            <li>Varios fixes críticos de arranque (nftables, Docker Compose, migración de <code>amd_keywords</code>)</li>
+            <li>Paleta unificada con VoxiKam bajo el Voxi Design System (v1 en ese momento)</li>
+            <li>Fix de contención de locks en <code>daily_usage</code> y <code>provider_stats</code>, modelo Vosk compartido entre workers</li>
+            <li>Nuevo (experimental): detección de tono de beep de buzón</li>
           </ul>
         </div>
       </details>
@@ -639,7 +693,7 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
         <summary class="release-header">
           <span class="release-tag mono">v1.0–v1.2.0</span>
           <span class="release-title">Release inicial — AMD Server se convierte en VoxiDet</span>
-          <span class="release-date mono">2026-06-27 → 30</span>
+          <span class="release-date mono">2026-06-22 → 30</span>
           <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
         </summary>
         <div class="release-body">
@@ -668,8 +722,7 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
         <div class="code-block"><span class="comment"># Clonar y levantar</span>
 <span class="cmd">git clone</span> &lt;repo&gt; /opt/voxidet
 <span class="cmd">cd</span> /opt/voxidet
-<span class="cmd">sudo ./deploy.sh</span>
-<span class="cmd">docker compose up</span> -d --build</div>
+<span class="cmd">sudo ./deploy.sh</span></div>
       </div>
       <div>
         <div class="code-block"><span class="comment"># Instalar el AGI en cada nodo Asterisk</span>
@@ -687,10 +740,9 @@ footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text
         <tr><th>Comando</th><th>Descripción</th></tr>
       </thead>
       <tbody>
-        <tr><td><code>./deploy.sh</code></td><td>Crea el usuario del sistema, copia nftables/sudoers/fail2ban e instala el cron</td></tr>
-        <tr><td><code>docker compose up -d --build</code></td><td>Levanta MySQL, Redis y la API — primera instalación o tras un cambio de código</td></tr>
-        <tr><td><code>docker compose restart api</code></td><td>Reinicia solo la API, sin tocar MySQL ni Redis</td></tr>
+        <tr><td><code>./deploy.sh</code></td><td>Instala/actualiza todo: usuario del sistema, nftables/sudoers/fail2ban, migraciones, imágenes Docker</td></tr>
         <tr><td><code>docker compose logs -f api</code></td><td>Sigue los logs de la API en tiempo real</td></tr>
+        <tr><td><code>docker compose restart api</code></td><td>Reinicia solo la API, sin tocar MySQL ni Redis</td></tr>
       </tbody>
     </table>
   </div>

@@ -9,6 +9,12 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.22.2 — 2026-08-03
+
+- Mejorado: la página pública de VoxiDet (voxidet.kpbtec.com) tiene un diseño renovado, alineado con el resto de las plataformas KPBTec, y su historial de versiones está al día.
+
+---
+
 ## v1.22.1 — 2026-08-03
 
 - Corregido: algunos cambios visuales de la actualización anterior no se veían reflejados en el navegador por una cache de archivos desactualizada — ahora se refrescan solos en cada actualización.
