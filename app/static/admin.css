@@ -521,43 +521,60 @@ select option { background: var(--bg2); }
     radial-gradient(ellipse 80% 60% at 50% -10%, rgba(221,139,61,.12) 0%, transparent 70%);
 }
 
+.login-wrap { flex-direction: column; gap: 1.5rem; }
+
+/* Marca — fuera de la tarjeta, mismo patrón que el login de VoxiKam
+   (logo + nombre flotando arriba, la tarjeta blanca solo tiene el form) */
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .6rem;
+}
+.login-logo-icon {
+  width: 46px; height: 46px;
+  background: linear-gradient(135deg, var(--signal) 0%, var(--signal-dim) 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 24px rgba(221,139,61,.35);
+}
+.login-brand-title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
 .login-card {
   background: var(--surface);
   border: 1px solid var(--border2);
   border-radius: var(--radius-lg);
-  padding: 2.25rem 2rem;
+  padding: 2rem 2rem 2.25rem;
   width: 100%;
   max-width: 370px;
   box-shadow: var(--shadow), 0 0 60px rgba(221,139,61,.06);
 }
 
-.login-logo {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-  margin-bottom: 1.75rem;
-}
-.login-logo-icon {
-  width: 38px; height: 38px;
-  background: linear-gradient(135deg, var(--signal) 0%, var(--signal-dim) 100%);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  box-shadow: 0 0 20px rgba(221,139,61,.35);
-}
-.login-logo-text h1 {
+.login-card-heading { margin-bottom: 1.5rem; }
+.login-card-heading h2 {
   font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: -.02em;
+  letter-spacing: -.01em;
+  margin-bottom: .3rem;
 }
-.login-logo-text .subtitle {
+.login-card-heading p {
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+.login-tagline {
   font-size: .72rem;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: .05em;
-  margin: 0;
+  letter-spacing: .06em;
 }
 
 .login-card .field { margin-bottom: .9rem; }

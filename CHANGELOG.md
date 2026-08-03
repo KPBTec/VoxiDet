@@ -9,6 +9,12 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.22.3 — 2026-08-03
+
+- Corregido: la pantalla de inicio de sesión tenía el logo apretado adentro del mismo recuadro que el formulario — ahora está separado, más prolijo y consistente con el resto de las plataformas KPBTec.
+
+---
+
 ## v1.22.2 — 2026-08-03
 
 - Mejorado: la página pública de VoxiDet (voxidet.kpbtec.com) tiene un diseño renovado, alineado con el resto de las plataformas KPBTec, y su historial de versiones está al día.

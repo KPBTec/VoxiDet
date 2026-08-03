@@ -5,23 +5,25 @@
 
 {% block content %}
 <div class="login-wrap">
-  <div class="login-card">
 
-    <div class="login-logo">
-      <div class="login-logo-icon">
-        <svg width="26" height="22" viewBox="0 0 26 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="0"    y="13"  width="3.5" height="7"  rx="1.75" fill="white" opacity="0.4"/>
-          <rect x="5.5"  y="7.5" width="3.5" height="12.5" rx="1.75" fill="white" opacity="0.65"/>
-          <rect x="11.25" y="2"  width="3.5" height="18" rx="1.75" fill="#dd8b3d"/>
-          <circle cx="13" cy="4" r="6.5" stroke="#dd8b3d" stroke-width="1.25" fill="none" opacity="0.4"/>
-          <rect x="17"   y="7.5" width="3.5" height="12.5" rx="1.75" fill="white" opacity="0.65"/>
-          <rect x="22.5" y="13"  width="3.5" height="7"  rx="1.75" fill="white" opacity="0.4"/>
-        </svg>
-      </div>
-      <div class="login-logo-text">
-        <h1>Voxi<span style="color:var(--signal)">Det</span></h1>
-        <p class="subtitle">Voice Detection AI</p>
-      </div>
+  <div class="login-brand">
+    <div class="login-logo-icon">
+      <svg width="26" height="22" viewBox="0 0 26 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0"    y="13"  width="3.5" height="7"  rx="1.75" fill="white" opacity="0.4"/>
+        <rect x="5.5"  y="7.5" width="3.5" height="12.5" rx="1.75" fill="white" opacity="0.65"/>
+        <rect x="11.25" y="2"  width="3.5" height="18" rx="1.75" fill="#dd8b3d"/>
+        <circle cx="13" cy="4" r="6.5" stroke="#dd8b3d" stroke-width="1.25" fill="none" opacity="0.4"/>
+        <rect x="17"   y="7.5" width="3.5" height="12.5" rx="1.75" fill="white" opacity="0.65"/>
+        <rect x="22.5" y="13"  width="3.5" height="7"  rx="1.75" fill="white" opacity="0.4"/>
+      </svg>
+    </div>
+    <h1 class="login-brand-title">Voxi<span style="color:var(--signal)">Det</span></h1>
+  </div>
+
+  <div class="login-card">
+    <div class="login-card-heading">
+      <h2>Iniciar sesión</h2>
+      <p>Ingresá tus credenciales para continuar</p>
     </div>
 
     {% if error %}
@@ -45,7 +47,9 @@
         Ingresar
       </button>
     </form>
-
   </div>
+
+  <p class="login-tagline">Voice Detection AI</p>
+
 </div>
 {% endblock %}
