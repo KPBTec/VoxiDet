@@ -1,0 +1,46 @@
+GNU AFFERO GENERAL PUBLIC LICENSE
+Version 3, 19 November 2007
+
+Copyright (c) 2026 KPBTec
+Contact & support: https://t.me/sktcod
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+-------------------------------------------------------------------------------
+
+ADDITIONAL TERMS (permitted under Section 7 of AGPL v3)
+
+1. Attribution: Any deployment of this software, modified or unmodified,
+   must retain visible credit to the original author:
+   KPBTec (https://t.me/sktcod)
+
+2. Network use: If you run a modified version of this software as a
+   network service (SaaS, hosted platform, API), you must make the
+   complete corresponding source code available under this license.
+
+3. Commercial licensing: If you wish to use this software under terms
+   other than the AGPL v3 (e.g., to keep modifications proprietary),
+   contact the author at https://t.me/sktcod for a commercial license.
+
+-------------------------------------------------------------------------------
+
+DISCLAIMER
+
+This software is provided for educational and operational purposes.
+The author is not responsible for any damages, losses, or legal issues
+arising from the use, modification, or distribution of this software.
+
+Use in production environments is at your own risk. You are responsible
+for securing your infrastructure, managing credentials, and complying
+with applicable telecommunications regulations in your jurisdiction.

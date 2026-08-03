@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block title %}Reportes — VoxiDet{% endblock %}
+{% set active_page = 'reports' %}
+
+{% block head %}
+<style>
+.rep-controls { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; margin-bottom:1.25rem; }
+.rep-controls span { font-size:.78rem; color:var(--muted); }
+.pct-pill { display:inline-block; font-size:.72rem; font-weight:600; padding:.1rem .45rem;
+            border-radius:8px; min-width:42px; text-align:center; }
+.pct-green  { background:rgba(34,197,94,.15);  color:#22c55e; }
+.pct-yellow { background:rgba(245,158,11,.15); color:#f59e0b; }
+.pct-blue   { background:rgba(99,102,241,.15); color:#818cf8; }
+.pct-red    { background:rgba(239,68,68,.15);  color:#ef4444; }
+.total-row  { background:rgba(99,102,241,.06); font-weight:600; }
+.total-row td { border-top:1px solid var(--border); }
+.lat-ok   { color:#22c55e; }
+.lat-warn { color:#f59e0b; }
+.lat-bad  { color:#ef4444; }
+.hours-toggle { margin-top:1.25rem; margin-bottom:1.25rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Reportes</h2>
+</div>
+
+<form method="get" class="rep-controls">
+  <span>Modo:</span>
+  <a href="?mode=day{% if selected_client %}&client_id={{ selected_client }}{% endif %}"
+     class="btn btn-sm {% if mode == 'day' %}btn-primary{% else %}btn-ghost{% endif %}">Por día</a>
+  <a href="?mode=month{% if selected_client %}&client_id={{ selected_client }}{% endif %}"
+     class="btn btn-sm {% if mode == 'month' %}btn-primary{% else %}btn-ghost{% endif %}">Por mes</a>
+
+  {% if mode == 'day' %}
+  <span>Fecha:</span>
+  <input type="date" name="date" class="input" style="max-width:160px;"
+         value="{{ selected_day }}" max="{{ today }}">
+  {% else %}
+  <span>Mes:</span>
+  <input type="month" name="month" class="input" style="max-width:160px;"
+         value="{{ selected_month }}">
+  {% endif %}
+
+  <input type="hidden" name="mode" value="{{ mode }}">
+
+  <span>Cliente:</span>
+  <select name="client_id" class="input" style="max-width:160px;font-size:.82rem;">
+    <option value="">Todos</option>
+    {% for c in clients %}
+    <option value="{{ c.id }}" {% if selected_client == c.id %}selected{% endif %}>{{ c.name }}</option>
+    {% endfor %}
+  </select>
+
+  <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
+</form>
+
+{% if rows %}
+<div class="card" style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        {% if mode == 'day' %}
+        <th>Cliente</th>
+        {% else %}
+        <th>Día</th>
+        {% endif %}
+        <th>Total</th>
+        <th>HUMAN</th>
+        <th>VOICEMAIL</th>
+        <th>UNKNOWN</th>
+        <th>Lat. prom.</th>
+        {% if mode == 'day' %}
+        <th>Audio prom.</th>
+        <th>Lentas &gt;3s</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        {% if mode == 'day' %}
+        <td>{{ r.client_name }}</td>
+        {% else %}
+        <td style="font-family:var(--font-mono);font-size:.82rem;">{{ r.day }}</td>
+        {% endif %}
+        <td><strong>{{ "{:,}".format(r.total) }}</strong></td>
+        <td>
+          <span class="pct-pill pct-green">{{ r.human_pct }}%</span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.25rem;">{{ "{:,}".format(r.human) }}</span>
+        </td>
+        <td>
+          <span class="pct-pill pct-yellow">{{ r.voicemail_pct }}%</span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.25rem;">{{ "{:,}".format(r.voicemail) }}</span>
+        </td>
+        <td>
+          <span class="pct-pill {% if r.unknown_pct > 15 %}pct-red{% else %}pct-blue{% endif %}">
+            {{ r.unknown_pct }}%
+          </span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.25rem;">{{ "{:,}".format(r.unknown) }}</span>
+        </td>
+        <td class="{% if r.avg_latency > 3000 %}lat-bad{% elif r.avg_latency > 1500 %}lat-warn{% else %}lat-ok{% endif %}">
+          {{ r.avg_latency }}ms
+        </td>
+        {% if mode == 'day' %}
+        <td style="color:var(--muted);">{{ r.avg_audio }}s</td>
+        <td class="{% if r.slow_pct > 5 %}lat-bad{% elif r.slow_pct > 1 %}lat-warn{% else %}lat-ok{% endif %}">
+          {{ r.slow_pct }}%
+          <span style="font-size:.72rem;color:var(--muted);">({{ r.slow_calls }})</span>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+
+      {% if total_row %}
+      <tr class="total-row">
+        <td>TOTAL</td>
+        <td>{{ "{:,}".format(total_row.total) }}</td>
+        <td>
+          <span class="pct-pill pct-green">{{ total_row.human_pct }}%</span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.25rem;">{{ "{:,}".format(total_row.human) }}</span>
+        </td>
+        <td>
+          <span class="pct-pill pct-yellow">{{ total_row.voicemail_pct }}%</span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.25rem;">{{ "{:,}".format(total_row.voicemail) }}</span>
+        </td>
+        <td>
+          <span class="pct-pill pct-blue">{{ total_row.unknown_pct }}%</span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.25rem;">{{ "{:,}".format(total_row.unknown) }}</span>
+        </td>
+        <td class="{% if total_row.avg_latency > 3000 %}lat-bad{% elif total_row.avg_latency > 1500 %}lat-warn{% else %}lat-ok{% endif %}">
+          {{ total_row.avg_latency }}ms
+        </td>
+        {% if mode == 'day' %}
+        <td>—</td>
+        <td class="{% if total_row.slow_pct > 5 %}lat-bad{% elif total_row.slow_pct > 1 %}lat-warn{% else %}lat-ok{% endif %}">
+          {{ total_row.slow_pct }}%
+        </td>
+        {% endif %}
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card" style="text-align:center;color:var(--muted);padding:2.5rem;">
+  Sin datos para el período seleccionado.
+</div>
+{% endif %}
+
+{% if mode == 'day' and hourly_rows %}
+<div class="hours-toggle">
+  <button type="button" id="btn-toggle-hours" class="btn btn-sm btn-ghost" onclick="toggleHours()">
+    Ver detalle por hora
+  </button>
+</div>
+
+<div class="card" id="hours-table" style="overflow-x:auto;display:none;">
+  <table>
+    <thead>
+      <tr>
+        <th>Hora</th>
+        {% if not selected_client %}<th>Cliente</th>{% endif %}
+        <th>Total</th>
+        <th>HUMAN</th>
+        <th>VOICEMAIL</th>
+        <th>UNKNOWN</th>
+        <th>Lat. prom.</th>
+        <th>Audio prom.</th>
+        <th>Lentas &gt;3s</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in hourly_rows %}
+      <tr>
+        <td style="font-family:var(--font-mono);font-size:.82rem;">{{ r.hour }}</td>
+        {% if not selected_client %}<td>{{ r.client_name }}</td>{% endif %}
+        <td>{{ "{:,}".format(r.total) }}</td>
+        <td>
+          <span class="pct-pill pct-green">{{ r.human_pct }}%</span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.2rem;">{{ r.human }}</span>
+        </td>
+        <td>
+          <span class="pct-pill pct-yellow">{{ r.voicemail_pct }}%</span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.2rem;">{{ r.voicemail }}</span>
+        </td>
+        <td>
+          <span class="pct-pill {% if r.unknown_pct > 15 %}pct-red{% else %}pct-blue{% endif %}">
+            {{ r.unknown_pct }}%
+          </span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.2rem;">{{ r.unknown }}</span>
+        </td>
+        <td class="{% if r.avg_latency > 3000 %}lat-bad{% elif r.avg_latency > 1500 %}lat-warn{% else %}lat-ok{% endif %}">
+          {{ r.avg_latency }}ms
+        </td>
+        <td style="color:var(--muted);">{{ r.avg_audio }}s</td>
+        <td class="{% if r.slow_pct > 5 %}lat-bad{% elif r.slow_pct > 1 %}lat-warn{% else %}lat-ok{% endif %}">
+          {{ r.slow_pct }}%
+          <span style="font-size:.72rem;color:var(--muted);">({{ r.slow_calls }})</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if mode == 'month' and by_client_rows %}
+<div class="hours-toggle">
+  <button type="button" id="btn-toggle-byclient" class="btn btn-sm btn-ghost" onclick="toggleByClient()">
+    Ver detalle por día y cliente
+  </button>
+</div>
+
+<div class="card" id="byclient-table" style="overflow-x:auto;display:none;">
+  <table>
+    <thead>
+      <tr>
+        <th>Día</th>
+        <th>Cliente</th>
+        <th>Total</th>
+        <th>HUMAN</th>
+        <th>VOICEMAIL</th>
+        <th>UNKNOWN</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in by_client_rows %}
+      <tr>
+        <td style="font-family:var(--font-mono);font-size:.82rem;">{{ r.day }}</td>
+        <td>{{ r.client_name }}</td>
+        <td><strong>{{ "{:,}".format(r.total) }}</strong></td>
+        <td>
+          <span class="pct-pill pct-green">{{ r.human_pct }}%</span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.25rem;">{{ "{:,}".format(r.human) }}</span>
+        </td>
+        <td>
+          <span class="pct-pill pct-yellow">{{ r.voicemail_pct }}%</span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.25rem;">{{ "{:,}".format(r.voicemail) }}</span>
+        </td>
+        <td>
+          <span class="pct-pill {% if r.unknown_pct > 15 %}pct-red{% else %}pct-blue{% endif %}">
+            {{ r.unknown_pct }}%
+          </span>
+          <span style="font-size:.72rem;color:var(--muted);margin-left:.25rem;">{{ "{:,}".format(r.unknown) }}</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if mode == 'month' and top_voicemail %}
+<div class="card" style="margin-top:1.25rem;overflow-x:auto;">
+  <h3 style="margin:0 0 .8rem;font-size:.95rem;">Top 10 transcripciones VOICEMAIL más repetidas</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Transcripción</th>
+        <th style="width:100px;">Cantidad</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in top_voicemail %}
+      <tr>
+        <td style="font-style:italic;">"{{ t.transcript }}"</td>
+        <td><strong>{{ "{:,}".format(t.count) }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleHours() {
+  const table = document.getElementById('hours-table');
+  const btn   = document.getElementById('btn-toggle-hours');
+  const show  = table.style.display === 'none';
+  table.style.display = show ? '' : 'none';
+  btn.textContent = show ? 'Ocultar detalle por hora' : 'Ver detalle por hora';
+}
+
+function toggleByClient() {
+  const table = document.getElementById('byclient-table');
+  const btn   = document.getElementById('btn-toggle-byclient');
+  const show  = table.style.display === 'none';
+  table.style.display = show ? '' : 'none';
+  btn.textContent = show ? 'Ocultar detalle por día y cliente' : 'Ver detalle por día y cliente';
+}
+</script>
+{% endblock %}

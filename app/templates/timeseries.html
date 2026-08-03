@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Detecciones — VoxiDet{% endblock %}
+{% set active_page = 'timeseries' %}
+
+{% block head %}
+<script src="/static/vendor/chart.umd.min.js"></script>
+<style>
+.ts-controls { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; margin-bottom:1.25rem; }
+.ts-controls span { font-size:.78rem; color:var(--muted); }
+.chart-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+              padding:1.25rem; margin-bottom:1rem; }
+.chart-wrap h3 { font-size:.82rem; text-transform:uppercase; letter-spacing:.05em;
+                 color:var(--muted); margin-bottom:1rem; }
+canvas { max-height:280px; }
+.live-dot { display:inline-block; width:8px; height:8px; border-radius:50%;
+            background:#22c55e; animation:pulse 1.4s infinite; margin-right:.3rem; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Detecciones <span class="live-dot" id="live-dot"></span></h2>
+</div>
+
+<div class="ts-controls">
+  <span>Vista:</span>
+  <button class="btn btn-sm btn-primary" id="btn-live" onclick="setMode('live')">En vivo</button>
+  <button class="btn btn-sm btn-ghost"   id="btn-day"  onclick="setMode('day')">Por día</button>
+
+  <span style="margin-left:.5rem;">Rango:</span>
+  {% for h, label in [(1,"1h"),(3,"3h"),(6,"6h"),(12,"12h")] %}
+  <button class="btn btn-sm btn-ghost range-btn" data-h="{{ h }}" onclick="setRange({{ h }})">{{ label }}</button>
+  {% endfor %}
+
+  <input type="date" id="date-input" class="input" style="display:none;max-width:160px;"
+         value="{{ today_str if today_str is defined else '' }}">
+
+  <span style="margin-left:.5rem;">Cliente:</span>
+  <select id="client-sel" class="input" style="max-width:160px;font-size:.82rem;" onchange="loadData()">
+    <option value="">Todos</option>
+    {% for c in clients %}
+    <option value="{{ c.id }}">{{ c.name }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="chart-wrap">
+  <h3>Por resultado (HUMAN / VOICEMAIL / UNKNOWN)</h3>
+  <canvas id="chart-result"></canvas>
+</div>
+<div class="chart-wrap">
+  <h3>Por cliente</h3>
+  <canvas id="chart-client"></canvas>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PREFIX  = "{{ admin_prefix }}";
+let chartResult = null, chartClient = null;
+let _mode  = "live";
+let _range = 1;
+let _timer = null;
+
+function makeChart(id) {
+  const ctx = document.getElementById(id).getContext("2d");
+  return new Chart(ctx, {
+    type: "line",
+    data: { labels: [], datasets: [] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      animation: false,
+      plugins: { legend: { labels: { color: "#94a3b8", font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: "#64748b", maxTicksLimit: 12, font: { size: 10 } },
+             grid:  { color: "rgba(255,255,255,.04)" } },
+        y: { beginAtZero: true,
+             ticks: { color: "#64748b", font: { size: 10 }, stepSize: 1 },
+             grid:  { color: "rgba(255,255,255,.06)" } }
+      }
+    }
+  });
+}
+
+function updateChart(chart, data, datasets_key) {
+  chart.data.labels   = data.labels || [];
+  chart.data.datasets = (data[datasets_key] || []).map(s => ({
+    label:           s.name,
+    data:            s.data,
+    borderColor:     s.color,
+    backgroundColor: s.color + "22",
+    borderWidth:     2,
+    pointRadius:     0,
+    tension:         0.3,
+    fill:            false,
+  }));
+  chart.update();
+}
+
+async function loadData() {
+  const cid = document.getElementById("client-sel").value;
+  let url = PREFIX + "/timeseries/data?";
+
+  if (_mode === "live") {
+    url += `range=${_range}`;
+  } else {
+    const d = document.getElementById("date-input").value ||
+              new Date().toISOString().slice(0, 10);
+    url += `date=${d}`;
+  }
+  if (cid) url += `&client_id=${cid}`;
+
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return;
+    const data = await r.json();
+    updateChart(chartResult, data, "by_result");
+    updateChart(chartClient, data, "by_client");
+  } catch(e) {}
+}
+
+function setMode(m) {
+  _mode = m;
+  const liveControls = document.querySelectorAll(".range-btn");
+  const dateInput    = document.getElementById("date-input");
+  const liveDot      = document.getElementById("live-dot");
+
+  if (m === "live") {
+    liveControls.forEach(b => b.style.display = "");
+    dateInput.style.display = "none";
+    liveDot.style.display   = "inline-block";
+    document.getElementById("btn-live").className = "btn btn-sm btn-primary";
+    document.getElementById("btn-day").className  = "btn btn-sm btn-ghost";
+    if (!_timer) _timer = setInterval(loadData, 15000);
+  } else {
+    liveControls.forEach(b => b.style.display = "none");
+    dateInput.style.display = "inline-block";
+    liveDot.style.display   = "none";
+    document.getElementById("btn-live").className = "btn btn-sm btn-ghost";
+    document.getElementById("btn-day").className  = "btn btn-sm btn-primary";
+    clearInterval(_timer); _timer = null;
+    dateInput.addEventListener("change", loadData, { once: false });
+  }
+  loadData();
+}
+
+function setRange(h) {
+  _range = h;
+  document.querySelectorAll(".range-btn").forEach(b => {
+    b.className = "btn btn-sm " + (parseInt(b.dataset.h) === h ? "btn-primary" : "btn-ghost");
+  });
+  loadData();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  chartResult = makeChart("chart-result");
+  chartClient = makeChart("chart-client");
+  setMode("live");
+  setRange(1);
+  _timer = setInterval(loadData, 15000);
+});
+</script>
+{% endblock %}

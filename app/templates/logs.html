@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Logs en vivo — VoxiDet{% endblock %}
+{% set active_page = 'logs' %}
+
+{% block head %}
+<style>
+  .result-HUMAN    { color: #10b981; font-weight: 600; }
+  .result-VOICEMAIL{ color: #ef4444; font-weight: 600; }
+  .result-UNKNOWN  { color: #6b7280; }
+  .result-ERROR    { color: #f59e0b; }
+  #log-table tbody tr { animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Logs en vivo</h2>
+  <div id="status-indicator" class="status-dot status-connecting">Conectando...</div>
+</div>
+
+{# Barra de filtros #}
+<div class="card filter-bar">
+  <input type="text"  id="f-caller"  placeholder="Teléfono (empieza con)" style="width:160px;">
+  <input type="date"  id="f-date"    style="width:150px;" title="Buscar en un día específico">
+  <select id="f-result">
+    <option value="">Todos los resultados</option>
+    <option value="HUMAN">HUMAN</option>
+    <option value="VOICEMAIL">VOICEMAIL</option>
+    <option value="UNKNOWN">UNKNOWN</option>
+  </select>
+  <input type="text" id="f-uniqueid" placeholder="Lead ID" style="width:130px;">
+  <input type="text" id="f-session"  placeholder="Session ID" style="width:110px; font-family:var(--font-mono); font-size:.85rem;">
+  <button class="btn btn-primary" onclick="applyFilters()">Filtrar</button>
+  <button class="btn btn-ghost"   onclick="clearFilters()">Limpiar</button>
+  <span class="muted" style="margin-left:auto;">
+    Mostrando últimas <span id="row-count">0</span> llamadas
+  </span>
+</div>
+
+{# Tabla de logs #}
+<div class="card" style="overflow-x:auto;">
+  <table id="log-table">
+    <thead>
+      <tr>
+        <th>Hora</th>
+        <th>Cliente</th>
+        <th>Teléfono</th>
+        <th>Lead ID</th>
+        <th>Campaña</th>
+        <th>Lista</th>
+        <th>Resultado</th>
+        <th>Capa</th>
+        <th>Modo</th>
+        <th>Proveedor</th>
+        <th title="Detección experimental de tono de beep — no participa en el resultado, solo para calibrar">Beep</th>
+        <th>ms</th>
+        <th>Transcripción</th>
+        <th>Session</th>
+      </tr>
+    </thead>
+    <tbody id="log-body">
+      <tr id="empty-row">
+        <td colspan="14" class="empty">Esperando llamadas...</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/logs.js"></script>
+<script>
+  initLogs('{{ admin_prefix }}');
+</script>
+{% endblock %}

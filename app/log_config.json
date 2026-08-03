@@ -1,0 +1,86 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+        "default": {
+            "()": "uvicorn.logging.DefaultFormatter",
+            "fmt": "%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+            "use_colors": false
+        },
+        "access": {
+            "()": "uvicorn.logging.AccessFormatter",
+            "fmt": "%(asctime)s [%(levelname)s] %(client_addr)s — %(request_line)s %(status_code)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+            "use_colors": false
+        }
+    },
+    "handlers": {
+        "default": {
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+            "stream": "ext://sys.stdout"
+        },
+        "access": {
+            "class": "logging.StreamHandler",
+            "formatter": "access",
+            "stream": "ext://sys.stdout"
+        },
+        "core_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "default",
+            "filename": "/srv/logs/core.log",
+            "maxBytes": 10485760,
+            "backupCount": 5
+        },
+        "web_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "default",
+            "filename": "/srv/logs/web.log",
+            "maxBytes": 10485760,
+            "backupCount": 5
+        },
+        "security_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "default",
+            "filename": "/srv/logs/security.log",
+            "maxBytes": 10485760,
+            "backupCount": 5
+        }
+    },
+    "loggers": {
+        "uvicorn": {
+            "handlers": ["default", "web_file"],
+            "level": "INFO",
+            "propagate": false
+        },
+        "uvicorn.error": {
+            "handlers": ["default", "web_file"],
+            "level": "INFO",
+            "propagate": false
+        },
+        "uvicorn.access": {
+            "handlers": ["access", "web_file"],
+            "level": "INFO",
+            "propagate": false
+        },
+        "voxidet.main":           { "handlers": ["default", "web_file"],  "level": "INFO", "propagate": false },
+        "voxidet.keywords":       { "handlers": ["default", "web_file"],  "level": "INFO", "propagate": false },
+        "voxidet.db":             { "handlers": ["default", "web_file"],  "level": "INFO", "propagate": false },
+        "voxidet.deps":           { "handlers": ["default", "web_file", "security_file"], "level": "INFO", "propagate": false },
+        "voxidet.security":       { "handlers": ["default", "security_file"], "level": "WARNING", "propagate": false },
+        "voxidet.install":        { "handlers": ["default", "web_file"],  "level": "INFO", "propagate": false },
+        "voxidet.firewall":       { "handlers": ["default", "web_file"],  "level": "INFO", "propagate": false },
+        "voxidet.client_keywords":{ "handlers": ["default", "web_file"],  "level": "INFO", "propagate": false },
+        "voxidet.api":            { "handlers": ["default", "core_file"], "level": "INFO", "propagate": false },
+        "voxidet.stream":         { "handlers": ["default", "core_file"], "level": "INFO", "propagate": false },
+        "voxidet.engine":         { "handlers": ["default", "core_file"], "level": "INFO", "propagate": false },
+        "voxidet.local_asr":      { "handlers": ["default", "core_file"], "level": "INFO", "propagate": false },
+        "voxidet.silero_vad":     { "handlers": ["default", "core_file"], "level": "INFO", "propagate": false },
+        "voxidet.cache":          { "handlers": ["default", "core_file"], "level": "INFO", "propagate": false }
+    },
+    "root": {
+        "level": "INFO",
+        "handlers": ["default"]
+    }
+}

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="VoxiDet — Detección AMD con IA para contact centers Asterisk/Vicidial. By KPBTec.">
+<meta property="og:title" content="VoxiDet — Answering Machine Detection con IA">
+<meta property="og:description" content="Detección de buzón de voz en 2 capas: energía + transcripción real como fallback. Para marcadores Vicidial/Asterisk.">
+<meta property="og:type" content="website">
+<title>VoxiDet — AMD con IA para Vicidial/Asterisk</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23070b14'/><text y='.72em' x='.16em' font-size='58'>🎙</text></svg>">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --ink:       #070b14;
+  --surface:   #0d1526;
+  --surface-2: #111d35;
+  --line:      #1a2744;
+  --line-2:    #253660;
+  --text:      #e7ecf3;
+  --muted:     #5b7390;
+  --signal:     #dd8b3d;
+  --signal-dim: #c17429;
+  --signal-100: #fbe0c4;
+  --ok:     #22c55e;
+  --danger: #ef4444;
+  --warn:   #f5b942;
+  --info:   #6b8fb5;
+  --radius:    12px;
+  --radius-sm: 8px;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Manrope', -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--signal); text-decoration: none; }
+a:hover { color: #eba456; }
+::selection { background: var(--signal); color: var(--ink); }
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; border-radius: 4px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.ico { width: 20px; height: 20px; flex-shrink: 0; }
+
+/* ── NAV ──────────────────────────────────────────────────────────── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(7,11,20,0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 60px;
+}
+.nav-logo { display: flex; align-items: center; }
+.nav-links { display: flex; gap: 4px; align-items: center; }
+.nav-links a:not(.nav-cta) {
+  color: var(--muted); font-size: 13px; font-weight: 600;
+  padding: 7px 13px; border-radius: var(--radius-sm);
+  transition: color .15s, background .15s;
+}
+.nav-links a:not(.nav-cta):hover { color: var(--text); background: var(--surface); }
+.nav-cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; color: var(--text) !important;
+  font-weight: 600; font-size: 13px;
+  border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+  padding: 7px 14px; margin-left: 8px;
+  transition: border-color .15s, background .15s;
+}
+.nav-cta:hover { border-color: var(--signal); background: var(--surface); }
+
+/* ── SECTION COMMON ───────────────────────────────────────────────── */
+section { padding: 88px 32px; border-bottom: 1px solid var(--line); }
+section:last-of-type { border-bottom: none; }
+.section-inner { max-width: 1080px; margin: 0 auto; }
+.section-tag {
+  font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--signal); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-tag::before { content: ''; width: 16px; height: 1px; background: var(--signal); }
+h2.section-title {
+  font-size: clamp(26px, 3.6vw, 38px); font-weight: 800;
+  letter-spacing: -0.7px; margin-bottom: 14px; color: var(--text);
+}
+.section-lead { color: var(--muted); font-size: 15.5px; max-width: 640px; line-height: 1.7; }
+.section-lead a { text-decoration: underline; text-underline-offset: 2px; }
+.on-surface { background: var(--surface); }
+.on-ink { background: var(--ink); }
+
+/* ── HERO ─────────────────────────────────────────────────────────── */
+.hero { position: relative; overflow: hidden; padding: 80px 32px 96px; border-bottom: 1px solid var(--line); }
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 900px 480px at 50% -10%, rgba(221,139,61,0.14) 0%, transparent 65%),
+    linear-gradient(180deg, transparent 0%, var(--ink) 100%);
+  pointer-events: none;
+}
+.hero-inner {
+  position: relative; max-width: 1080px; margin: 0 auto;
+  display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center;
+}
+@media(max-width: 940px) { .hero-inner { grid-template-columns: 1fr; } }
+.hero-eyebrow {
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase; color: var(--signal);
+  margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+}
+.hero-eyebrow::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px rgba(34,197,94,0.18); }
+.hero h1 {
+  font-size: clamp(34px, 4.2vw, 48px);
+  font-weight: 800; letter-spacing: -1.3px; line-height: 1.1;
+  margin-bottom: 20px; color: var(--text);
+}
+.hero h1 em { font-style: normal; color: var(--signal); }
+.hero-desc { max-width: 480px; margin-bottom: 34px; color: var(--muted); font-size: 15.5px; line-height: 1.75; }
+.hero-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 44px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 20px; border-radius: var(--radius-sm); font-size: 14px;
+  font-weight: 700; cursor: pointer; transition: all .15s;
+  text-decoration: none !important; border: 1px solid transparent;
+}
+.btn-primary { background: var(--signal); color: #1a1002; }
+.btn-primary:hover { background: #e79a4f; transform: translateY(-1px); }
+.btn-outline { background: transparent; color: var(--text); border-color: var(--line-2); }
+.btn-outline:hover { border-color: var(--signal); background: var(--surface); transform: translateY(-1px); }
+.hero-stats { display: flex; gap: 32px; flex-wrap: wrap; padding-top: 24px; border-top: 1px solid var(--line); }
+.hero-stat .num { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--text); }
+.hero-stat .lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* ── HERO: LIVE DETECTIONS CARD (signature element) ──────────────── */
+.det-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: 0 20px 60px -20px rgba(0,0,0,0.6); }
+.det-chrome { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.det-dots { display: flex; gap: 6px; }
+.det-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line-2); }
+.det-chrome-title { font-family: var(--mono); font-size: 11.5px; color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.det-live { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10.5px; font-weight: 600; color: var(--ok); text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+.det-live span { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); animation: pulse-dot 1.8s ease-in-out infinite; }
+.det-rows { padding: 8px 0; }
+.det-row {
+  display: flex; align-items: baseline; gap: 10px; padding: 8px 16px;
+  opacity: 0; animation: row-in .5s ease forwards;
+}
+.det-row .t { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 62px; flex-shrink: 0; }
+.det-row .phone { font-family: var(--mono); font-size: 12px; color: var(--muted); width: 92px; flex-shrink: 0; }
+.det-row .arrow { color: var(--line-2); flex-shrink: 0; font-size: 12px; }
+.det-row .result { font-family: var(--mono); font-size: 12px; font-weight: 700; flex: 1; }
+.det-row .r-human    { color: var(--ok); }
+.det-row .r-voicemail{ color: var(--danger); }
+.det-row .r-thinking { color: var(--muted); font-style: italic; font-weight: 400; }
+.det-row .meta { font-family: var(--mono); font-size: 10.5px; color: var(--muted); background: var(--surface-2); padding: 2px 8px; border-radius: 100px; white-space: nowrap; }
+.det-row:nth-child(1) { animation-delay: .15s; }
+.det-row:nth-child(2) { animation-delay: .38s; }
+.det-row:nth-child(3) { animation-delay: .61s; }
+.det-row:nth-child(4) { animation-delay: .84s; }
+.det-row:nth-child(5) { animation-delay: 1.07s; }
+.det-row:nth-child(6) { animation-delay: 1.30s; }
+@keyframes row-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  .det-row { animation: none; opacity: 1; }
+  .det-live span { animation: none; }
+}
+
+/* ── WHY CARDS ────────────────────────────────────────────────────── */
+.why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1px; margin-top: 44px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.why-card { background: var(--ink); padding: 26px; }
+.why-icon { width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--signal-100); color: var(--signal-dim); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+.why-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.why-card p { font-size: 13.5px; color: var(--muted); line-height: 1.65; }
+
+/* ── PIPELINE (cómo funciona) ─────────────────────────────────────── */
+.pipe-steps { display: flex; flex-direction: column; margin-top: 44px; max-width: 720px; }
+.pipe-step { display: flex; gap: 0; position: relative; }
+.pipe-step::before {
+  content: ''; position: absolute; left: 19px; top: 44px;
+  width: 1px; height: calc(100% - 8px);
+  background: linear-gradient(to bottom, var(--line-2), transparent);
+}
+.pipe-step:last-child::before { display: none; }
+.pipe-dot { width: 40px; flex-shrink: 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 10px; }
+.pipe-dot span {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--line-2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--signal);
+  flex-shrink: 0;
+}
+.pipe-content { padding: 8px 0 32px 16px; flex: 1; }
+.pipe-content h4 { font-size: 14.5px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+.pipe-content p { font-size: 13.5px; color: var(--muted); line-height: 1.65; }
+.pipe-content code { font-family: var(--mono); font-size: 12px; background: var(--surface-2); color: var(--signal); padding: 1px 5px; border-radius: 4px; }
+
+/* ── MODULE GRID (panel admin) ────────────────────────────────────── */
+.modules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 40px; }
+.mod { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 18px; transition: border-color .15s, transform .15s; }
+.mod:hover { border-color: var(--line-2); transform: translateY(-2px); }
+.mod-ico { color: var(--signal); margin-bottom: 12px; }
+.mod-name { font-size: 13.5px; font-weight: 700; margin-bottom: 5px; color: var(--text); }
+.mod-desc { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+
+/* ── SECURITY (mismo patrón que VoxiKam) ─────────────────────────── */
+.sec-layers { display: flex; flex-direction: column; margin-top: 44px; max-width: 720px; }
+.sec-layer { display: flex; gap: 0; position: relative; }
+.sec-layer::before {
+  content: ''; position: absolute; left: 19px; top: 44px;
+  width: 1px; height: calc(100% - 8px);
+  background: linear-gradient(to bottom, var(--line-2), transparent);
+}
+.sec-layer:last-child::before { display: none; }
+.sec-dot { width: 40px; flex-shrink: 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 10px; }
+.sec-dot span {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--line-2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--signal);
+  flex-shrink: 0;
+}
+.sec-content { padding: 8px 0 32px 16px; flex: 1; }
+.sec-content h4 { font-size: 14.5px; font-weight: 700; color: var(--text); margin-bottom: 5px; display: flex; align-items: center; gap: 8px; }
+.sec-content h4 .ico { color: var(--muted); }
+.sec-content p { font-size: 13.5px; color: var(--muted); line-height: 1.65; }
+
+/* ── RELEASES ─────────────────────────────────────────────────────── */
+.releases-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 40px; }
+.release-card { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--ink); }
+.release-header { display: flex; align-items: center; gap: 14px; padding: 15px 18px; background: var(--surface-2); cursor: pointer; user-select: none; list-style: none; }
+.release-header::-webkit-details-marker { display: none; }
+.release-header:hover { background: var(--surface); }
+.release-tag { font-family: var(--mono); background: var(--surface); color: var(--text); border: 1px solid var(--line-2); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 100px; white-space: nowrap; }
+.release-tag.latest { background: var(--signal-100); color: #6b4415; border-color: transparent; }
+.release-title { font-size: 13.5px; font-weight: 600; flex: 1; color: var(--text); }
+.release-date { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.release-chevron { color: var(--muted); transition: transform .2s; flex-shrink: 0; }
+details.release-card[open] .release-chevron { transform: rotate(180deg); }
+.release-body { padding: 16px 20px; border-top: 1px solid var(--line); }
+.release-body ul { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.release-body li { font-size: 13px; color: var(--muted); line-height: 1.55; }
+.release-body code { font-family: var(--mono); font-size: 12px; background: var(--surface-2); color: var(--signal); padding: 1px 5px; border-radius: 4px; }
+.releases-more { margin-top: 18px; font-size: 13.5px; color: var(--muted); }
+
+/* ── INSTALL ──────────────────────────────────────────────────────── */
+.install-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px; }
+@media(max-width: 680px) { .install-grid { grid-template-columns: 1fr; } }
+.code-block { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; font-family: var(--mono); font-size: 13px; color: var(--text); line-height: 1.75; white-space: pre; overflow-x: auto; }
+.code-block .comment { color: var(--muted); }
+.code-block .cmd { color: var(--ok); }
+.code-block .flag { color: var(--info); }
+.install-table { width: 100%; border-collapse: collapse; margin-top: 40px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.install-table th { background: var(--surface-2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 700; padding: 11px 16px; text-align: left; }
+.install-table td { padding: 11px 16px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--text); }
+.install-table td code { font-family: var(--mono); font-size: 12px; background: var(--surface-2); padding: 2px 7px; border-radius: 4px; color: var(--signal); }
+
+/* ── FOOTER ───────────────────────────────────────────────────────── */
+footer { background: #050810; color: var(--muted); padding: 48px 32px 32px; text-align: center; }
+.footer-sub { font-size: 13px; margin: 14px 0 22px; color: var(--muted); }
+.footer-links { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px; }
+.footer-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: var(--radius-sm); transition: color .15s, background .15s; }
+.footer-links a:hover { color: var(--text); background: var(--surface); }
+.footer-copy { font-size: 12px; color: var(--line-2); }
+
+/* ── RESPONSIVE ───────────────────────────────────────────────────── */
+@media(max-width: 768px) {
+  nav { padding: 0 16px; }
+  .nav-links a:not(.nav-cta) { display: none; }
+  section { padding: 60px 20px; }
+  .hero { padding: 56px 20px 64px; }
+  .hero-stats { gap: 22px; }
+  .modules-grid { grid-template-columns: 1fr 1fr; }
+}
+@media(max-width: 480px) {
+  .modules-grid { grid-template-columns: 1fr; }
+  .hero-buttons { flex-direction: column; align-self: stretch; }
+  .hero-buttons .btn { justify-content: center; }
+  .release-header { flex-wrap: wrap; row-gap: 8px; }
+  .release-title { flex-basis: 100%; order: -1; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="https://voxidet.kpbtec.com" class="nav-logo">
+    <img src="logo.svg" alt="VoxiDet" style="height:26px;width:auto;">
+  </a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how">Cómo funciona</a>
+    <a href="#admin">Panel</a>
+    <a href="#releases">Releases</a>
+    <a href="#install">Instalar</a>
+    <a href="https://t.me/sktcod" class="nav-cta" target="_blank">
+      <svg class="ico" style="width:15px;height:15px" viewBox="0 0 24 24" fill="currentColor"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/></svg>
+      Soporte
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" style="padding-left:0;padding-right:0;">
+  <div class="hero-inner" style="padding:0 32px;">
+    <div>
+      <div class="hero-eyebrow">AMD · Detección con IA · 2 capas</div>
+      <h1>Tu marcador no distingue un buzón de una persona.<br>VoxiDet sí — en menos de <em>100ms</em>.</h1>
+      <p class="hero-desc">
+        Energía de audio + análisis de voz resuelve el 70% de las llamadas al instante y sin costo.
+        El resto pasa por transcripción real (7 proveedores con fallback automático) antes de decidir.
+        Cero agentes desperdiciados escuchando un contestador.
+      </p>
+      <div class="hero-buttons">
+        <a href="https://github.com/KPBTec/VoxiDet/archive/refs/heads/main.zip" class="btn btn-primary" target="_blank">
+          <svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          Descargar v1.13.0
+        </a>
+        <a href="https://github.com/KPBTec/VoxiDet" class="btn btn-outline" target="_blank">
+          <svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.016-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.605-2.665-.303-5.467-1.332-5.467-5.93 0-1.31.469-2.38 1.235-3.22-.124-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.3 1.23A11.5 11.5 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.29-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.873.118 3.176.77.84 1.233 1.91 1.233 3.22 0 4.61-2.807 5.624-5.48 5.92.43.372.823 1.102.823 2.222 0 1.604-.015 2.896-.015 3.286 0 .32.216.694.825.576C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          Ver en GitHub
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="num mono">2 capas</div><div class="lbl">Energía + transcripción real</div></div>
+        <div class="hero-stat"><div class="num mono">7</div><div class="lbl">Proveedores ASR con fallback</div></div>
+        <div class="hero-stat"><div class="num mono">v1.13.0</div><div class="lbl">Versión actual</div></div>
+      </div>
+    </div>
+
+    <div class="det-card">
+      <div class="det-chrome">
+        <div class="det-dots"><span></span><span></span><span></span></div>
+        <div class="det-chrome-title mono">Logs en vivo · Campaña B2B</div>
+        <div class="det-live"><span></span>en vivo</div>
+      </div>
+      <div class="det-rows">
+        <div class="det-row"><span class="t">20:41:03</span><span class="phone">51987654321</span><span class="arrow">→</span><span class="result r-human">HUMAN</span><span class="meta">capa 1 · 84ms</span></div>
+        <div class="det-row"><span class="t">20:41:05</span><span class="phone">51944412211</span><span class="arrow">→</span><span class="result r-voicemail">VOICEMAIL</span><span class="meta">capa 1 · 91ms</span></div>
+        <div class="det-row"><span class="t">20:41:07</span><span class="phone">51998877665</span><span class="arrow">→</span><span class="result r-thinking">transcribiendo…</span><span class="meta">capa 2</span></div>
+        <div class="det-row"><span class="t">20:41:07</span><span class="phone">51998877665</span><span class="arrow">→</span><span class="result r-human">HUMAN</span><span class="meta">capa 2 · 412ms</span></div>
+        <div class="det-row"><span class="t">20:41:09</span><span class="phone">51922334455</span><span class="arrow">→</span><span class="result r-human">HUMAN</span><span class="meta">capa 1 · 77ms</span></div>
+        <div class="det-row"><span class="t">20:41:10</span><span class="phone">51933221144</span><span class="arrow">→</span><span class="result r-voicemail">VOICEMAIL</span><span class="meta">capa 1 · 68ms</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY -->
+<section id="features" class="on-ink">
+  <div class="section-inner">
+    <div class="section-tag">¿Por qué VoxiDet?</div>
+    <h2 class="section-title">Detección real, no el AMD nativo de Asterisk</h2>
+    <p class="section-lead">El AMD nativo de Asterisk decide con reglas de timing fijas. VoxiDet analiza el audio real de cada llamada — con IA de respaldo cuando la energía sola no alcanza.</p>
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="why-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3 8 4-16 3 8h4"/></svg></div>
+        <h3>Detección en 2 capas</h3>
+        <p>Capa 1: energía de audio, sin costo, resuelve ~70% de las llamadas en menos de 100ms. Capa 2: transcripción real como fallback para el 30% restante, dudoso por diseño.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></div>
+        <h3>7 proveedores ASR con fallback</h3>
+        <p>Deepgram, Groq, Fireworks, Together, OpenAI, y Vosk/Sherpa en local (costo $0). Si el proveedor configurado falla, reintenta automáticamente con otro activo.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M6 12h.01M6 16h.01M12 8h6M12 12h6M12 16h4"/></svg></div>
+        <h3>Batch o Stream, por cliente</h3>
+        <p>Batch: confiable con 150+ agentes simultáneos, la opción recomendada. Stream (EAGI): más rápido para volúmenes menores. Se cambia desde el panel sin tocar Asterisk.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg></div>
+        <h3>Transcripción sin costo de latencia</h3>
+        <p>Toda llamada queda transcripta para auditoría, incluso cuando la capa 1 ya resolvió sola — corre en segundo plano después de responder a Asterisk, nunca agrega latencia real.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></div>
+        <h3>Auto-actualización del AGI</h3>
+        <p>Se instala una sola vez por nodo Asterisk. Cada llamada verifica versión y se actualiza sola en segundo plano — nunca hay que volver a tocar el dialplan.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/></svg></div>
+        <h3>Firewall + fail2ban desde el panel</h3>
+        <p>Reglas ALLOW/DENY por IP y servicio, más bloqueo automático de fuerza bruta (sshd y rechazos de la API) — sin editar nftables a mano.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CÓMO FUNCIONA -->
+<section id="how" class="on-surface">
+  <div class="section-inner">
+    <div class="section-tag">El pipeline</div>
+    <h2 class="section-title">Cómo funciona, en cada llamada</h2>
+    <p class="section-lead">Cinco pasos, del contestar al AMDSTATUS que decide el dialplan — todo dentro de la ventana de grabación, sin que el marcador note la diferencia.</p>
+
+    <div class="pipe-steps">
+      <div class="pipe-step">
+        <div class="pipe-dot"><span>1</span></div>
+        <div class="pipe-content">
+          <h4>La llamada contesta</h4>
+          <p>El AGI verifica su versión (<code>GET /amd/check</code>) y se auto-actualiza si hace falta — sin tocar el dialplan ni reinstalar nada en el nodo Asterisk.</p>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-dot"><span>2</span></div>
+        <div class="pipe-content">
+          <h4>Graba 2.5 segundos de audio</h4>
+          <p><code>RECORD FILE</code> captura el WAV y lo envía por HTTP multipart a <code>/amd</code> — todo dentro del mismo tiempo que un humano tarda en decir "¿aló?".</p>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-dot"><span>3</span></div>
+        <div class="pipe-content">
+          <h4>Capa 1: energía de audio</h4>
+          <p>Sin API, sin costo. Resuelve ~70% de los casos en menos de 100ms según la duración y forma de la señal de voz.</p>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-dot"><span>4</span></div>
+        <div class="pipe-content">
+          <h4>Capa 2: transcripción real (solo si hace falta)</h4>
+          <p>Casos dudosos pasan por el proveedor ASR configurado del cliente. Si falla, reintenta automáticamente con otro proveedor activo.</p>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-dot"><span>5</span></div>
+        <div class="pipe-content">
+          <h4>El dialplan decide</h4>
+          <p><code>AMDSTATUS</code> (HUMAN / VOICEMAIL / UNKNOWN) queda en el canal de Asterisk — el dialplan conecta al agente o cuelga, sin intervención manual.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PANEL ADMIN -->
+<section id="admin" class="on-ink">
+  <div class="section-inner">
+    <div class="section-tag">Panel de Administración</div>
+    <h2 class="section-title">Todo el sistema, desde un solo panel</h2>
+    <p class="section-lead">Clientes, proveedores, firewall y calidad de detección — nueve secciones, sin tocar Docker ni Asterisk para el día a día.</p>
+
+    <div class="modules-grid">
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="mod-name">Clientes</div><div class="mod-desc">CRUD, API keys, toggle batch/stream por cliente, límites diarios de consumo.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="mod-name">Logs en vivo</div><div class="mod-desc">Stream SSE de cada detección en tiempo real: resultado, capa, proveedor, latencia y transcripción.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg></div><div class="mod-name">Keywords</div><div class="mod-desc">Palabras y frases globales o por cliente que ajustan la clasificación de la capa 2.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M6 12h.01M6 16h.01M12 8h6M12 12h6M12 16h4"/></svg></div><div class="mod-name">Proveedores</div><div class="mod-desc">API keys de los 7 proveedores ASR de capa 2, con orden de fallback configurable.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="mod-name">Consumo</div><div class="mod-desc">Costo estimado en USD por proveedor — visibilidad total del gasto en transcripción.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"/></svg></div><div class="mod-name">Firewall</div><div class="mod-desc">Reglas ALLOW/DENY por IP o servicio, más IPs baneadas por fail2ban (ver/desbanear).</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></div><div class="mod-name">Detecciones</div><div class="mod-desc">Gráfico por minuto, hora o día — resultado y cliente, para ver tendencias de un vistazo.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></div><div class="mod-name">Reportes</div><div class="mod-desc">Resumen día o mes con fila TOTAL; detalle por hora con %HUMAN/VM/UNK, latencia y llamadas lentas.</div></div>
+      <div class="mod"><div class="mod-ico"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg></div><div class="mod-name">Sistema</div><div class="mod-desc">CPU, RAM, disco y red por interfaz, más llamadas AMD en proceso — auto-refresh cada 3s.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- SEGURIDAD -->
+<section id="security" class="on-surface">
+  <div class="section-inner">
+    <div class="section-tag">Seguridad</div>
+    <h2 class="section-title">Cinco capas, activas por defecto</h2>
+    <p class="section-lead">Nada de esto requiere configuración adicional al instalar.</p>
+
+    <div class="sec-layers">
+      <div class="sec-layer">
+        <div class="sec-dot"><span>1</span></div>
+        <div class="sec-content">
+          <h4><svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>X-API-Key + Redis</h4>
+          <p>Auth de la API AMD: header validado contra Redis, con MySQL como respaldo. Sin API key válida, cero acceso a <code>/amd</code>.</p>
+        </div>
+      </div>
+      <div class="sec-layer">
+        <div class="sec-dot"><span>2</span></div>
+        <div class="sec-content">
+          <h4><svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Sesión firmada en el panel</h4>
+          <p>Cookie firmada con <code>itsdangerous</code> para el login admin — sin JWT ni sesiones server-side que mantener.</p>
+        </div>
+      </div>
+      <div class="sec-layer">
+        <div class="sec-dot"><span>3</span></div>
+        <div class="sec-content">
+          <h4><svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>Rate limiting</h4>
+          <p>120 req/min en <code>/amd</code>, 60 req/min en <code>/admin/</code> — protege contra abuso sin afectar tráfico legítimo.</p>
+        </div>
+      </div>
+      <div class="sec-layer">
+        <div class="sec-dot"><span>4</span></div>
+        <div class="sec-content">
+          <h4><svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>IP whitelist por cliente</h4>
+          <p><code>allowed_ips</code> valida el origen de cada llamada a <code>/amd</code> — un cliente no puede usar la API key de otro desde una IP ajena.</p>
+        </div>
+      </div>
+      <div class="sec-layer">
+        <div class="sec-dot"><span>5</span></div>
+        <div class="sec-content">
+          <h4><svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>nftables + fail2ban</h4>
+          <p>Firewall gestionado desde el panel, más bloqueo automático de fuerza bruta en sshd y en la API — sin editar reglas a mano.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RELEASES -->
+<section id="releases" class="on-ink">
+  <div class="section-inner">
+    <div class="section-tag">Historial de versiones</div>
+    <h2 class="section-title">Releases</h2>
+    <p class="section-lead">Historial completo en <a href="https://github.com/KPBTec/VoxiDet/blob/main/CHANGELOG.md">CHANGELOG.md</a> · versión activa definida en <a href="https://github.com/KPBTec/VoxiDet/blob/main/release.conf">release.conf</a></p>
+
+    <div class="releases-grid">
+
+      <details class="release-card" open>
+        <summary class="release-header">
+          <span class="release-tag latest mono">v1.13.0 latest</span>
+          <span class="release-title">amd_bias por cliente — deja de asumir VOICEMAIL a ciegas en casos ambiguos</span>
+          <span class="release-date mono">2026-07-04</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>Nuevo selector "Conservador / Agresivo" por cliente en <code>/admin/clients</code> — en transcripciones ambiguas de capa 2 (sin ninguna keyword clara), Agresivo devuelve <code>UNKNOWN</code> en vez de asumir <code>VOICEMAIL</code></li>
+            <li>Corrige un sesgo real: con más agentes conectados simultáneamente, el audio con más ruido/cruce cae más seguido en esa ambigüedad, convirtiendo humanos reales en falsos VOICEMAIL</li>
+            <li>Requiere ajustar el dialplan del cliente para que <code>UNKNOWN</code> transfiera al agente — si no, el modo Agresivo no cambia nada en la práctica</li>
+            <li>Aplica tanto a modo batch como Stream</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.12.5–v1.12.6</span>
+          <span class="release-title">Deploy más tolerante a fallos + landing pública nueva</span>
+          <span class="release-date mono">2026-07-02 → 04</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>Un healthcheck fallido ya no corta todo el deploy — degrada igual que VoxiKam en vez de abortar</li>
+            <li>Generación de <code>credentials.conf</code> unificada con VoxiKam (heredoc, sin <code>.example</code>)</li>
+            <li>Nueva landing pública en <code>docs/index.html</code> (esta página) — no existía antes</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.12.0–v1.12.2</span>
+          <span class="release-title">Reorganización de schema + fix crítico de handshake en modo Stream</span>
+          <span class="release-date mono">2026-07-02</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li><code>mode</code> y <code>transcript</code> dejan de vivir sobrecargados en <code>param3</code> — columnas dedicadas</li>
+            <li>Fix crítico: <code>Sec-WebSocket-Key</code> se generaba con el alfabeto incorrecto — ~50% de los handshakes de modo Stream eran rechazados con 400, cayendo a batch en silencio</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.11.0–v1.11.6</span>
+          <span class="release-title">Serie de fixes críticos: AMDSTATUS vacío, Python 3.6, credentials.conf</span>
+          <span class="release-date mono">2026-07-01</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>Fix crítico: auto-actualización del AGI dejaba <code>AMDSTATUS</code> vacío en el 100% de las llamadas</li>
+            <li>Causa raíz real: sintaxis <code>bytes | None</code> no corre en Python 3.6 (las cajas Asterisk lo usan) — sin error de sintaxis local, rompía en runtime</li>
+            <li><code>PUBLIC_URL</code> sin esquema (<code>http://</code>) rompía todas las llamadas HTTP del AGI en silencio</li>
+            <li>Migración automática de <code>.env</code> viejo → <code>credentials.conf</code> — sin esto, un servidor ya instalado perdía la conexión a MySQL</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.9.0–v1.10.0</span>
+          <span class="release-title">Autotuneo de recursos + instalación interactiva</span>
+          <span class="release-date mono">2026-07-01</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>Autotuneo de recursos también en cada arranque del sistema, no solo al correr <code>deploy.sh</code></li>
+            <li>Primera instalación genera <code>credentials.conf</code> de forma interactiva (mismo patrón que VoxiKam)</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.6.0–v1.8.3</span>
+          <span class="release-title">Performance bajo carga alta (150-200 agentes) + detección experimental de beep</span>
+          <span class="release-date mono">2026-07-01</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>Fix de contención de locks en <code>daily_usage</code> y <code>provider_stats</code> bajo carga alta (150-200 agentes concurrentes)</li>
+            <li>Modelo Vosk compartido entre workers (<code>gunicorn --preload</code>) — dejó de duplicarse por worker</li>
+            <li>Cliente HTTP compartido para las APIs de transcripción — antes se creaba uno nuevo por request</li>
+            <li>Nuevo (experimental): detección de tono de beep de buzón, solo para calibrar — no participa aún en la decisión</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.5.0–v1.5.1</span>
+          <span class="release-title">fail2ban, Voxi Design System y firewall unificado con VoxiKam</span>
+          <span class="release-date mono">2026-07-01</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>fail2ban (sshd + rechazos de la API) — ver/desbanear IPs desde Firewall en el panel</li>
+            <li>Paleta unificada con VoxiKam bajo el Voxi Design System</li>
+            <li>Firewall refactorizado a fragmento único (mismo patrón que VoxiKam, no una tabla aparte)</li>
+            <li>Varios fixes críticos de arranque (nftables, Docker Compose, migración de <code>amd_keywords</code>)</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.0–v1.2.0</span>
+          <span class="release-title">Release inicial — AMD Server se convierte en VoxiDet</span>
+          <span class="release-date mono">2026-06-27 → 30</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>Detección AMD en 2 capas (energía + transcripción), panel admin Jinja2, AGI en Python stdlib puro</li>
+            <li>Rebrand completo: AMD Server → VoxiDet</li>
+            <li>Nuevos proveedores de transcripción agregados al fallback de capa 2</li>
+          </ul>
+        </div>
+      </details>
+
+    </div>
+    <p class="releases-more">Historial línea por línea de cada patch en <a href="https://github.com/KPBTec/VoxiDet/blob/main/CHANGELOG.md">CHANGELOG.md</a>.</p>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section id="install" class="on-surface">
+  <div class="section-inner">
+    <div class="section-tag">Instalación</div>
+    <h2 class="section-title">Todo corre en Docker</h2>
+    <p class="section-lead">Ubuntu 22.04 / Debian 12. No necesitás instalar Python, pip ni ninguna librería — todo dentro de los contenedores.</p>
+
+    <div class="install-grid">
+      <div>
+        <div class="code-block"><span class="comment"># Clonar y levantar</span>
+<span class="cmd">git clone</span> &lt;repo&gt; /opt/voxidet
+<span class="cmd">cd</span> /opt/voxidet
+<span class="cmd">sudo ./deploy.sh</span>
+<span class="cmd">docker compose up</span> -d --build</div>
+      </div>
+      <div>
+        <div class="code-block"><span class="comment"># Instalar el AGI en cada nodo Asterisk</span>
+<span class="cmd">wget</span> https://tu-dominio/install/TOKEN \
+  -O /var/lib/asterisk/agi-bin/amd_ia.agi
+<span class="cmd">chmod</span> 755 /var/lib/asterisk/agi-bin/amd_ia.agi
+
+<span class="comment"># Ver logs</span>
+<span class="cmd">docker compose logs</span> <span class="flag">-f</span> api</div>
+      </div>
+    </div>
+
+    <table class="install-table">
+      <thead>
+        <tr><th>Comando</th><th>Descripción</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>./deploy.sh</code></td><td>Crea el usuario del sistema, copia nftables/sudoers/fail2ban e instala el cron</td></tr>
+        <tr><td><code>docker compose up -d --build</code></td><td>Levanta MySQL, Redis y la API — primera instalación o tras un cambio de código</td></tr>
+        <tr><td><code>docker compose restart api</code></td><td>Reinicia solo la API, sin tocar MySQL ni Redis</td></tr>
+        <tr><td><code>docker compose logs -f api</code></td><td>Sigue los logs de la API en tiempo real</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <a href="https://voxidet.kpbtec.com" style="display:inline-block;">
+    <img src="logo.svg" alt="VoxiDet" style="height:38px;width:auto;">
+  </a>
+  <div class="footer-sub">By KPBTec · Knowledge, Protection &amp; Business Technology</div>
+  <div class="footer-links">
+    <a href="https://github.com/KPBTec/VoxiDet" target="_blank">
+      <svg class="ico" style="width:15px;height:15px" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.016-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.605-2.665-.303-5.467-1.332-5.467-5.93 0-1.31.469-2.38 1.235-3.22-.124-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.3 1.23A11.5 11.5 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.29-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.873.118 3.176.77.84 1.233 1.91 1.233 3.22 0 4.61-2.807 5.624-5.48 5.92.43.372.823 1.102.823 2.222 0 1.604-.015 2.896-.015 3.286 0 .32.216.694.825.576C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
+    <a href="https://t.me/sktcod" target="_blank">
+      <svg class="ico" style="width:15px;height:15px" viewBox="0 0 24 24" fill="currentColor"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/></svg>
+      Telegram
+    </a>
+    <a href="https://github.com/KPBTec/VoxiDet/blob/main/CHANGELOG.md" target="_blank">
+      <svg class="ico" style="width:15px;height:15px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></svg>
+      Changelog
+    </a>
+    <a href="https://github.com/KPBTec/VoxiDet/blob/main/LICENSE" target="_blank">
+      <svg class="ico" style="width:15px;height:15px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      AGPL v3
+    </a>
+  </div>
+  <div class="footer-copy">© 2026 KPBTec · Knowledge, Protection &amp; Business Technology · Todos los derechos reservados.</div>
+</footer>
+
+</body>
+</html>

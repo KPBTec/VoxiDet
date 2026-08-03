@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}API Keys — VoxiDet{% endblock %}
+{% set active_page = 'provider_keys' %}
+
+{% block head %}
+<style>
+.pk-section { margin-bottom: 1.25rem; }
+.pk-section-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  flex-wrap: wrap; gap: .75rem; margin-bottom: .9rem;
+}
+.pk-section-desc { font-size: .78rem; color: var(--muted); margin-top: .15rem; }
+.pk-keys-list { display: flex; flex-direction: column; gap: .6rem; }
+.pk-add-row { display: flex; gap: .5rem; margin-top: .9rem; align-items: center; }
+.pk-add-row input { flex: 1; font-size: .8rem; }
+.pk-hint { font-size: .72rem; color: var(--muted); margin-top: .3rem; }
+.pk-save-row { display: flex; gap: .5rem; margin-top: 1.1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>API Keys de proveedores</h2>
+</div>
+
+{% if request.query_params.get('saved') %}
+<div class="alert alert-success" style="margin-bottom:1rem; padding:.75rem 1rem; background:rgba(16,185,129,.12); border:1px solid #10b981; border-radius:var(--radius); color:#10b981;">
+  ✓ Guardado correctamente.
+</div>
+{% endif %}
+
+<p style="font-size:.82rem;color:var(--muted);margin-bottom:1.5rem;">
+  Las keys guardadas acá quedan cifradas — no se vuelven a mostrar completas después de agregarlas.
+  Las que ya tenés en <code>credentials.conf</code> también aparecen (marcadas <code>.env</code>) — se pueden
+  desactivar para la rotación pero no borrar desde acá, el valor real sigue en el archivo.
+</p>
+
+{% for p in providers_info %}
+<div class="card pk-section" id="section-{{ p.provider }}">
+  <div class="pk-section-head">
+    <div>
+      <h3 style="margin:0;">{{ p.label }}</h3>
+      <div class="pk-section-desc">{{ p.description }}</div>
+    </div>
+    <button class="btn btn-sm btn-ghost" onclick="loadModels('{{ p.provider }}')" id="btn-load-{{ p.provider }}">
+      🔄 Cargar modelos
+    </button>
+  </div>
+
+  <div class="pk-keys-list" id="keys-list-{{ p.provider }}">
+    <div style="color:var(--muted); font-size:.82rem; text-align:center; padding:1rem 0;">
+      Presiona "Cargar modelos" para ver las keys y sus modelos disponibles
+    </div>
+  </div>
+
+  <div class="pk-add-row">
+    <input type="password" id="new-key-input-{{ p.provider }}" placeholder="Pegar nueva API key..." autocomplete="off">
+    <button class="btn btn-sm btn-primary" onclick="addKey('{{ p.provider }}')" id="btn-add-key-{{ p.provider }}">+ Agregar</button>
+  </div>
+
+  <div class="pk-save-row">
+    <button class="btn btn-primary" id="btn-save-{{ p.provider }}" onclick="saveModel('{{ p.provider }}')">Guardar modelos</button>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const _prefix = '{{ admin_prefix }}';
+let _keyDataByProvider = {};
+
+async function loadModels(provider) {
+  const btn = document.getElementById('btn-load-' + provider);
+  btn.textContent = '⏳ Cargando...'; btn.disabled = true;
+  const container = document.getElementById('keys-list-' + provider);
+  try {
+    const resp = await fetch(`${_prefix}/providers/${provider}/models`);
+    const data = await resp.json();
+    if (data.no_key) {
+      container.innerHTML =
+        '<div style="color:#ef4444;font-size:.82rem;padding:.5rem 0;">' +
+        'Sin API key configurada — agregá una abajo o en credentials.conf.</div>';
+      _keyDataByProvider[provider] = [];
+      return;
+    }
+    _keyDataByProvider[provider] = data.keys || [];
+    renderKeys(provider);
+  } catch(e) {
+    alert('Error: ' + e);
+  } finally {
+    btn.textContent = '🔄 Cargar modelos'; btn.disabled = false;
+  }
+}
+
+function renderKeys(provider) {
+  const container = document.getElementById('keys-list-' + provider);
+  const keyData = _keyDataByProvider[provider] || [];
+  if (!keyData.length) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:.82rem;">Sin keys configuradas</div>';
+    return;
+  }
+  // id real que manda el backend (env: 0,1,2... / DB: KEY_ID_OFFSET+n) — NO la
+  // posición en el array, que no coincide una vez que hay keys mezcladas de
+  // .env y del panel.
+  container.innerHTML = keyData.map((k, i) => `
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.65rem .9rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap;">
+        <span style="font-size:.78rem;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:.4rem;">
+          KEY ${i + 1}&nbsp;<code style="color:var(--text);letter-spacing:.04em;">${k.masked}</code>
+          ${k.source === 'env'
+            ? '<span class="badge" style="font-size:.65rem;opacity:.6;" title="credentials.conf">.env</span>'
+            : '<span class="badge" style="font-size:.65rem;color:#8b5cf6;" title="Guardada desde el panel">panel</span>'}
+        </span>
+        <div style="display:flex;align-items:center;gap:.4rem;">
+          <select id="sel-${provider}-${k.index}" style="font-size:.8rem;flex:1;min-width:180px;max-width:260px;">
+            ${k.models.map(m =>
+              `<option value="${m}"${m === k.current_model ? ' selected' : ''}>${m}</option>`
+            ).join('')}
+          </select>
+          <label style="display:flex;align-items:center;gap:.25rem;font-size:.72rem;color:var(--muted);cursor:pointer;"
+                 title="${k.source === 'env' ? 'Desactivar para la rotación (el valor sigue en credentials.conf)' : 'Activa/inactiva para la rotación'}">
+            <input type="checkbox" ${k.active ? 'checked' : ''} onchange="toggleKey('${provider}', ${k.index}, this.checked)">
+            activa
+          </label>
+          ${k.source === 'db' ? `
+            <button class="btn btn-sm btn-ghost" style="color:#ef4444;font-size:.72rem;padding:.2rem .5rem;"
+                    onclick="deleteKey('${provider}', ${k.index})" title="Eliminar">✕</button>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveModel(provider) {
+  const keyData = _keyDataByProvider[provider] || [];
+  if (!keyData.length) { alert('Carga los modelos primero'); return; }
+  const keys = {};
+  keyData.forEach(k => {
+    const sel = document.getElementById(`sel-${provider}-${k.index}`);
+    if (sel) keys[String(k.index)] = sel.value;
+  });
+  // modelo global = el más frecuente entre las keys
+  const counts = {};
+  Object.values(keys).forEach(m => counts[m] = (counts[m]||0) + 1);
+  const globalModel = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
+
+  const form = new FormData();
+  form.append('key_models_json', JSON.stringify({ global: globalModel, keys }));
+  const resp = await fetch(`${_prefix}/providers/${provider}/model`, {
+    method: 'POST', body: form,
+  });
+  if (resp.ok || resp.redirected) {
+    window.location.href = `${_prefix}/providers/keys?saved=1`;
+  } else {
+    alert('Error al guardar');
+  }
+}
+
+async function addKey(provider) {
+  const input = document.getElementById('new-key-input-' + provider);
+  const key = input.value.trim();
+  if (!key) return;
+  const btn = document.getElementById('btn-add-key-' + provider);
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const form = new FormData();
+    form.append('key', key);
+    const resp = await fetch(`${_prefix}/providers/${provider}/keys/add`, { method: 'POST', body: form });
+    const data = await resp.json();
+    if (!data.ok) { alert('Error: ' + (data.error || 'no se pudo agregar')); return; }
+    input.value = '';
+    await loadModels(provider);
+  } catch(e) {
+    alert('Error: ' + e);
+  } finally {
+    btn.disabled = false; btn.textContent = '+ Agregar';
+  }
+}
+
+async function toggleKey(provider, keyId, active) {
+  const form = new FormData();
+  form.append('active', active ? '1' : '0');
+  const resp = await fetch(`${_prefix}/providers/${provider}/keys/${keyId}/toggle`, { method: 'POST', body: form });
+  const data = await resp.json();
+  if (!data.ok) alert('Error: ' + (data.error || 'no se pudo cambiar'));
+}
+
+async function deleteKey(provider, keyId) {
+  if (!confirm('¿Eliminar esta key? No se puede deshacer.')) return;
+  const resp = await fetch(`${_prefix}/providers/${provider}/keys/${keyId}/delete`, { method: 'POST' });
+  const data = await resp.json();
+  if (!data.ok) { alert('Error: ' + (data.error || 'no se pudo eliminar')); return; }
+  await loadModels(provider);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Keywords VoxiDet — VoxiDet{% endblock %}
+{% set active_page = 'keywords' %}
+
+{% block head %}
+<style>
+  .kw-grid      { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .kw-badge-H   { background: #064e3b; color: #34d399; border-radius: 4px; padding: 2px 8px; font-size:.75rem; font-weight:600; }
+  .kw-badge-V   { background: #7f1d1d; color: #fca5a5; border-radius: 4px; padding: 2px 8px; font-size:.75rem; font-weight:600; }
+  .kw-row td    { vertical-align: middle; }
+  .kw-inactive  { opacity: .4; text-decoration: line-through; }
+  .add-form     { display: flex; gap: .5rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+  .add-form input { width: 160px; }
+  .alert-ok     { color: #34d399; font-size: .85rem; }
+  .alert-dup    { color: #f59e0b; font-size: .85rem; }
+  .alert-error  { color: #f87171; font-size: .85rem; }
+  @media (max-width: 700px) { .kw-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Keywords de clasificación</h2>
+  <span class="muted" style="font-size:.85rem">
+    Se recargan automáticamente cada 60 s — los cambios aplican sin reiniciar
+  </span>
+</div>
+
+{% if msg == 'ok' %}
+  <p class="alert-ok">✓ Keyword agregada correctamente.</p>
+{% elif msg == 'dup' %}
+  <p class="alert-dup">⚠ Esa keyword ya existe.</p>
+{% elif msg == 'error' %}
+  <p class="alert-error">✗ Datos inválidos. Revisa la palabra y el tipo.</p>
+{% endif %}
+
+{# ── Formulario agregar ── #}
+<div class="card">
+  <form method="post" action="{{ admin_prefix }}/keywords/add" class="add-form">
+    <input type="text" name="word" placeholder="nueva keyword" required
+           style="text-transform:lowercase;" autocomplete="off">
+    <select name="type" required>
+      <option value="HUMAN">HUMAN</option>
+      <option value="VOICEMAIL">VOICEMAIL</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">+ Agregar</button>
+  </form>
+  <p class="muted" style="font-size:.8rem; margin:.4rem 0 0">
+    Acepta palabras (<code>hola</code>) o frases completas (<code>deje su mensaje</code>, <code>después del tono</code>).
+    Las frases se detectan como substring exacto — más precisas que palabras sueltas.
+    Si existe en ambos tipos, VOICEMAIL siempre gana.
+  </p>
+</div>
+
+{# ── Tablas ── #}
+<div class="kw-grid">
+
+  {# HUMAN #}
+  <div class="card">
+    <h3 style="margin-top:0; color:#34d399">
+      HUMAN &nbsp;<span class="muted" style="font-size:.8rem; font-weight:400">({{ human|length }})</span>
+    </h3>
+    <table>
+      <thead>
+        <tr><th>Palabra</th><th style="width:90px">Activa</th><th style="width:60px"></th></tr>
+      </thead>
+      <tbody>
+      {% for k in human %}
+        <tr class="kw-row">
+          <td class="{{ 'kw-inactive' if not k.active else '' }}">
+            {{ k.word }}
+            {% if ' ' in k.word %}<span style="font-size:.68rem; color:#6b7280; margin-left:.3rem;">[frase]</span>{% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ admin_prefix }}/keywords/{{ k.id }}/toggle" style="margin:0">
+              <button class="btn btn-sm {{ 'btn-success' if k.active else 'btn-ghost' }}"
+                      title="{{ 'Desactivar' if k.active else 'Activar' }}">
+                {{ '✓' if k.active else '○' }}
+              </button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="{{ admin_prefix }}/keywords/{{ k.id }}/delete"
+                  onsubmit="return confirm('¿Eliminar «{{ k.word }}»?')" style="margin:0">
+              <button class="btn btn-sm btn-danger">✕</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="empty">Sin keywords HUMAN</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# VOICEMAIL #}
+  <div class="card">
+    <h3 style="margin-top:0; color:#f87171">
+      VOICEMAIL &nbsp;<span class="muted" style="font-size:.8rem; font-weight:400">({{ voicemail|length }})</span>
+    </h3>
+    <table>
+      <thead>
+        <tr><th>Palabra</th><th style="width:90px">Activa</th><th style="width:60px"></th></tr>
+      </thead>
+      <tbody>
+      {% for k in voicemail %}
+        <tr class="kw-row">
+          <td class="{{ 'kw-inactive' if not k.active else '' }}">
+            {{ k.word }}
+            {% if ' ' in k.word %}<span style="font-size:.68rem; color:#6b7280; margin-left:.3rem;">[frase]</span>{% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ admin_prefix }}/keywords/{{ k.id }}/toggle" style="margin:0">
+              <button class="btn btn-sm {{ 'btn-success' if k.active else 'btn-ghost' }}"
+                      title="{{ 'Desactivar' if k.active else 'Activar' }}">
+                {{ '✓' if k.active else '○' }}
+              </button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="{{ admin_prefix }}/keywords/{{ k.id }}/delete"
+                  onsubmit="return confirm('¿Eliminar «{{ k.word }}»?')" style="margin:0">
+              <button class="btn btn-sm btn-danger">✕</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="empty">Sin keywords VOICEMAIL</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

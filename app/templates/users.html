@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "_macros.html" import active_badge %}
+{% block title %}Usuarios admin — VoxiDet{% endblock %}
+{% set active_page = 'users' %}
+
+{% block head %}
+<style>
+  .add-form     { display: flex; gap: .5rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+  .alert-ok     { color: #34d399; font-size: .85rem; }
+  .alert-dup    { color: #f59e0b; font-size: .85rem; }
+  .alert-error  { color: #f87171; font-size: .85rem; }
+  .inline-form  { display: inline; }
+  .pw-form      { display: inline-flex; gap: .3rem; align-items: center; }
+  .pw-form input { width: 140px; font-size: .78rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Usuarios admin</h2>
+  <span class="muted" style="font-size:.85rem">Cada persona con su propia cuenta — necesario para que la auditoría de cambios (Historial por cliente) diga quién hizo qué</span>
+</div>
+
+{% if msg == 'ok' %}
+  <p class="alert-ok">✓ Listo.</p>
+{% elif msg == 'pw-ok' %}
+  <p class="alert-ok">✓ Contraseña actualizada.</p>
+{% elif msg == 'dup' %}
+  <p class="alert-dup">⚠ Ese usuario ya existe.</p>
+{% elif msg == 'last-admin' %}
+  <p class="alert-error">✗ No se puede desactivar — es el único admin activo que queda.</p>
+{% elif msg == 'error' %}
+  <p class="alert-error">✗ Usuario mínimo 3 caracteres, contraseña mínimo 8.</p>
+{% endif %}
+
+<div class="card">
+  <form method="post" action="{{ admin_prefix }}/users/create" class="add-form">
+    <input type="text" name="username" placeholder="usuario" required minlength="3" autocomplete="off">
+    <input type="password" name="password" placeholder="contraseña (mín. 8)" required minlength="8" autocomplete="new-password">
+    <button type="submit" class="btn btn-primary btn-sm">+ Crear usuario</button>
+  </form>
+</div>
+
+<div class="card" style="overflow-x:auto; margin-top:1rem;">
+  <table>
+    <thead>
+      <tr>
+        <th>Usuario</th>
+        <th>Estado</th>
+        <th>Creado</th>
+        <th>Último login</th>
+        <th>Cambiar contraseña</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for u in users %}
+    <tr>
+      <td><strong>{{ u.username }}</strong>{% if u.username == current_user %} <span class="muted" style="font-size:.75rem">(vos)</span>{% endif %}</td>
+      <td>{{ active_badge(u.active) }}</td>
+      <td class="muted" style="font-size:.8rem">{{ u.created_at }}</td>
+      <td class="muted" style="font-size:.8rem">{{ u.last_login_at or "nunca" }}</td>
+      <td>
+        <form method="post" action="{{ admin_prefix }}/users/{{ u.id }}/password" class="pw-form">
+          <input type="password" name="password" placeholder="nueva contraseña" minlength="8" required autocomplete="new-password">
+          <button type="submit" class="btn btn-sm btn-ghost">Cambiar</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="{{ admin_prefix }}/users/{{ u.id }}/toggle" class="inline-form">
+          <input type="hidden" name="active" value="{{ 0 if u.active else 1 }}">
+          <button type="submit" class="btn btn-sm {% if u.active %}btn-ghost{% else %}btn-primary{% endif %}">
+            {% if u.active %}Desactivar{% else %}Activar{% endif %}
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="empty">No hay usuarios registrados.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

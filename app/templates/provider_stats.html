@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Consumo — VoxiDet{% endblock %}
+{% set active_page = 'stats' %}
+
+{% block head %}
+<style>
+.period-bar { display:flex; gap:.4rem; margin-bottom:1.25rem; flex-wrap:wrap; align-items:center; }
+.period-bar span { font-size:.78rem; color:var(--muted); margin-right:.3rem; }
+.stat-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.2rem; }
+.stat-card .label { font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:.3rem; }
+.stat-card .value { font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:1.5rem; font-weight:700; }
+.stat-card .sub   { font-size:.75rem; color:var(--muted); margin-top:.15rem; }
+.detail-row { background:var(--bg); }
+.detail-row td { font-size:.8rem; color:var(--muted); padding:.4rem .8rem .4rem 2rem !important; }
+.toggle-detail { cursor:pointer; font-size:.75rem; color:var(--muted); background:none; border:none;
+                 padding:0 .4rem; border-radius:3px; }
+.toggle-detail:hover { background:var(--border); color:var(--text); }
+.cost-pill { display:inline-block; font-family:var(--font-mono); font-variant-numeric:tabular-nums;
+             font-size:.72rem; font-weight:600; padding:.15rem .5rem;
+             border-radius:9px; background:rgba(34,197,94,.12); color:var(--green); }
+.cost-pill.zero { background:rgba(107,114,128,.1); color:var(--muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Consumo de proveedores</h2>
+</div>
+
+{# Selector de período #}
+<div class="period-bar">
+  <span>Período:</span>
+  {% for d, label in [(1,"Hoy"),(7,"7 días"),(30,"30 días"),(90,"90 días")] %}
+  <a href="?period={{ d }}"
+     class="btn btn-sm {% if period == d %}btn-primary{% else %}btn-ghost{% endif %}">
+    {{ label }}
+  </a>
+  {% endfor %}
+</div>
+
+{# Tarjetas resumen #}
+<div class="stat-cards">
+  <div class="stat-card">
+    <div class="label">Costo total estimado</div>
+    <div class="value" style="color:{% if total_cost > 0 %}#f59e0b{% else %}var(--text){% endif %}">
+      ${{ "%.4f"|format(total_cost) }}
+    </div>
+    <div class="sub">{{ "%.2f"|format(summary|sum(attribute='audio_min')) }} min de audio</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Total requests</div>
+    <div class="value">{{ "{:,}".format(summary|sum(attribute='requests')) }}</div>
+    <div class="sub">en {{ period }} día{% if period > 1 %}s{% endif %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Errores</div>
+    {% set total_err = summary|sum(attribute='errors') %}
+    {% set total_req = summary|sum(attribute='requests') %}
+    <div class="value" style="color:{% if total_err > 0 %}#ef4444{% else %}var(--text){% endif %}">
+      {{ "{:,}".format(total_err) }}
+    </div>
+    <div class="sub">
+      {% if total_req > 0 %}{{ "%.1f"|format(total_err / total_req * 100) }}% tasa de error{% endif %}
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Proyección mensual</div>
+    {% set daily_cost = total_cost / period %}
+    <div class="value" style="color:#8b5cf6;">
+      ${{ "%.3f"|format(daily_cost * 30) }}
+    </div>
+    <div class="sub">~${{ "%.4f"|format(daily_cost) }}/día × 30</div>
+  </div>
+</div>
+
+{# Tabla por proveedor #}
+{% if summary %}
+<div class="card" style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Proveedor</th>
+        <th>Precio/min</th>
+        <th>Facturación</th>
+        <th>Requests</th>
+        <th>Audio</th>
+        <th>Errores</th>
+        <th>Costo estimado</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in summary %}
+    {% set has_keys = keys_by_provider.get(p.provider, [])|length > 1 %}
+    <tr>
+      <td>
+        {% if has_keys %}
+        <button class="toggle-detail" onclick="toggleKeys('{{ p.provider }}')" id="btn-{{ p.provider }}" style="margin-right:.4rem;">▶</button>
+        {% endif %}
+        <strong>{{ p.provider|upper }}</strong>
+      </td>
+      <td style="font-size:.78rem;">
+        {% if p.is_local %}
+          <span style="color:var(--muted);">—</span>
+        {% else %}
+          ${{ "%.4f"|format(p.price_per_min) }}
+        {% endif %}
+      </td>
+      <td style="font-size:.75rem;">
+        {% if p.billing_unit == 'mín. 10s' %}
+          <span style="color:#f59e0b;" title="Cobra mínimo 10 segundos por request — costoso en AMD con clips cortos">⚠ {{ p.billing_unit }}</span>
+        {% elif p.billing_unit == 'por segundo real' %}
+          <span style="color:#10b981;" title="Cobra exactamente los segundos reales de audio — ideal para AMD">✓ {{ p.billing_unit }}</span>
+        {% elif p.billing_unit == 'local' %}
+          <span style="color:var(--muted);">local</span>
+        {% else %}
+          <span style="color:#6b7280;">{{ p.billing_unit }}</span>
+        {% endif %}
+      </td>
+      <td>{{ "{:,}".format(p.requests) }}</td>
+      <td>{{ "%.1f"|format(p.audio_min) }} min</td>
+      <td>
+        {% if p.errors > 0 %}
+        {% set err_pct = p.errors / p.requests * 100 if p.requests else 0 %}
+        <span class="badge {% if err_pct > 50 %}badge-red{% else %}badge-yellow{% endif %}">
+          {{ p.errors }} ({{ "%.1f"|format(err_pct) }}%)
+        </span>
+        {% else %}
+        <span class="badge badge-gray">0</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if p.is_local %}
+        <span class="cost-pill zero">LOCAL — $0</span>
+        {% else %}
+        <span class="cost-pill {% if p.cost_usd == 0 %}zero{% endif %}">
+          ${{ "%.4f"|format(p.cost_usd) }}
+        </span>
+        {% endif %}
+      </td>
+    </tr>
+    {# Detalle por key #}
+    {% if has_keys %}
+    <tr class="detail-row" id="keys-{{ p.provider }}" style="display:none;">
+      <td colspan="7" style="padding:0 !important;">
+        <table style="width:100%; border:none;">
+          <thead>
+            <tr style="background:none;">
+              <th style="font-size:.72rem;">Key</th>
+              <th style="font-size:.72rem;">Requests</th>
+              <th style="font-size:.72rem;">Audio</th>
+              <th style="font-size:.72rem;">Errores</th>
+              <th style="font-size:.72rem;">Costo</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for k in keys_by_provider[p.provider] %}
+          <tr class="detail-row">
+            <td><code style="font-size:.75rem;">{{ k.masked }}</code></td>
+            <td>{{ "{:,}".format(k.requests) }}</td>
+            <td>{{ "%.1f"|format(k.audio_min) }} min</td>
+            <td>
+              {% if k.errors > 0 %}
+              <span class="badge badge-yellow">{{ k.errors }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td>${{ "%.4f"|format(k.cost_usd) }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card" style="text-align:center; padding:2.5rem; color:var(--muted);">
+  Sin datos para este período — los consumos se registran automáticamente con cada llamada AMD.
+</div>
+{% endif %}
+
+<p style="font-size:.72rem; color:var(--muted); margin-top:.8rem;">
+  * Costo estimado basado en precio por minuto del modelo por defecto de cada proveedor. El costo real puede variar según el modelo configurado por key.
+</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleKeys(provider) {
+  const row = document.getElementById('keys-' + provider);
+  const btn = document.getElementById('btn-' + provider);
+  const open = row.style.display !== 'none';
+  row.style.display = open ? 'none' : '';
+  btn.textContent   = open ? '▶' : '▼';
+}
+</script>
+{% endblock %}

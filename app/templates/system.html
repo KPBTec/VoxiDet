@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Sistema — VoxiDet{% endblock %}
+{% set active_page = 'system' %}
+
+{% block head %}
+<style>
+.sys-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+.sys-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.1rem 1.25rem; }
+.sys-card .label { font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:.5rem; }
+.sys-card .value { font-size:1.6rem; font-weight:700; line-height:1; }
+.sys-card .sub   { font-size:.75rem; color:var(--muted); margin-top:.3rem; }
+.bar-wrap { background:var(--bg); border-radius:6px; height:6px; margin-top:.6rem; overflow:hidden; }
+.bar-fill { height:100%; border-radius:6px; transition:width .4s; }
+.bar-green  { background:#22c55e; }
+.bar-yellow { background:#f59e0b; }
+.bar-red    { background:#ef4444; }
+.bar-blue   { background:#6366f1; }
+.net-table  { width:100%; border-collapse:collapse; font-size:.82rem; }
+.net-table td { padding:.35rem .6rem; border-bottom:1px solid var(--border); }
+.net-table td:first-child { color:var(--muted); font-family:var(--font-mono); }
+.live-badge { display:inline-flex; align-items:center; gap:.4rem; font-size:.8rem;
+              background:rgba(34,197,94,.12); color:#22c55e; border-radius:20px;
+              padding:.2rem .7rem; margin-left:.5rem; }
+.live-badge::before { content:''; width:7px; height:7px; border-radius:50%;
+                      background:#22c55e; animation:pulse 1.4s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.active-big { font-size:3rem; font-weight:800; color:var(--signal); line-height:1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;gap:.5rem;">
+  <h2>Sistema</h2>
+  <span class="live-badge">En vivo</span>
+</div>
+
+{# ── Llamadas activas ── #}
+<div class="sys-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:1rem;">
+  <div class="sys-card" id="card-active">
+    <div class="label">Llamadas en proceso</div>
+    <div class="active-big" id="val-active">{{ active_calls }}</div>
+    <div class="sub">Detectando ahora mismo</div>
+  </div>
+  <div class="sys-card" id="card-cpu">
+    <div class="label">CPU</div>
+    <div class="value" id="val-cpu">{{ stats.cpu_percent }}%</div>
+    <div class="bar-wrap"><div class="bar-fill" id="bar-cpu"
+      style="width:{{ stats.cpu_percent }}%;background:{% if stats.cpu_percent > 80 %}#ef4444{% elif stats.cpu_percent > 60 %}#f59e0b{% else %}#22c55e{% endif %};"></div></div>
+    <div class="sub" id="sub-cpu">&nbsp;</div>
+  </div>
+  <div class="sys-card" id="card-ram">
+    <div class="label">RAM</div>
+    <div class="value" id="val-ram">{{ stats.ram_percent }}%</div>
+    <div class="bar-wrap"><div class="bar-fill" id="bar-ram"
+      style="width:{{ stats.ram_percent }}%;background:{% if stats.ram_percent > 80 %}#ef4444{% elif stats.ram_percent > 60 %}#f59e0b{% else %}#6366f1{% endif %};"></div></div>
+    <div class="sub" id="sub-ram">{{ stats.ram_used_gb }} / {{ stats.ram_total_gb }} GB</div>
+  </div>
+  <div class="sys-card">
+    <div class="label">Disco</div>
+    <div class="value">{{ stats.disk_percent }}%</div>
+    <div class="bar-wrap"><div class="bar-fill"
+      style="width:{{ stats.disk_percent }}%;background:{% if stats.disk_percent > 85 %}#ef4444{% elif stats.disk_percent > 70 %}#f59e0b{% else %}#14b8a6{% endif %};"></div></div>
+    <div class="sub">{{ stats.disk_used_gb }} / {{ stats.disk_total_gb }} GB</div>
+  </div>
+</div>
+
+{# ── Red ── #}
+{% if stats.net %}
+<div class="card">
+  <div style="font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;
+              letter-spacing:.05em;margin-bottom:.75rem;">Interfaces de red</div>
+  <table class="net-table">
+    <thead>
+      <tr>
+        <td>Interfaz</td>
+        <td>RX total</td>
+        <td>TX total</td>
+      </tr>
+    </thead>
+    <tbody id="net-body">
+      {% for iface in stats.net %}
+      <tr>
+        <td>{{ iface.iface }}</td>
+        <td>{{ iface.rx_str }}</td>
+        <td>{{ iface.tx_str }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PREFIX = "{{ admin_prefix }}";
+
+function colorFor(pct) {
+  return pct > 80 ? "#ef4444" : pct > 60 ? "#f59e0b" : "#22c55e";
+}
+
+function fmtBytes(b) {
+  const units = ["B","KB","MB","GB","TB"];
+  let i = 0;
+  while (b >= 1024 && i < units.length - 1) { b /= 1024; i++; }
+  return b.toFixed(1) + " " + units[i];
+}
+
+async function refresh() {
+  try {
+    const r = await fetch(PREFIX + "/system/data");
+    if (!r.ok) return;
+    const d = await r.json();
+
+    document.getElementById("val-active").textContent = d.active_calls ?? 0;
+
+    const cpu = d.cpu_percent ?? 0;
+    document.getElementById("val-cpu").textContent = cpu.toFixed(1) + "%";
+    const barCpu = document.getElementById("bar-cpu");
+    barCpu.style.width = cpu + "%";
+    barCpu.style.background = colorFor(cpu);
+
+    const ram = d.ram_percent ?? 0;
+    document.getElementById("val-ram").textContent = ram.toFixed(1) + "%";
+    const barRam = document.getElementById("bar-ram");
+    barRam.style.width = ram + "%";
+    barRam.style.background = ram > 80 ? "#ef4444" : ram > 60 ? "#f59e0b" : "#6366f1";
+    document.getElementById("sub-ram").textContent =
+      (d.ram_used_gb ?? 0) + " / " + (d.ram_total_gb ?? 0) + " GB";
+
+    if (d.net && d.net.length) {
+      const tbody = document.getElementById("net-body");
+      if (tbody) {
+        tbody.innerHTML = d.net.map(n =>
+          `<tr><td>${n.iface}</td><td>${n.rx_str}</td><td>${n.tx_str}</td></tr>`
+        ).join("");
+      }
+    }
+  } catch(e) {}
+}
+
+// Usa cookie de sesión — el endpoint /system/data admite ambos (header o sesión)
+// Sobreescribe el fetch para pasar la key de admin desde la sesión via cookie
+// Refresca cada 3 segundos
+setInterval(refresh, 3000);
+</script>
+{% endblock %}

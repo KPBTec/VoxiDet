@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% from "_macros.html" import active_badge %}
+{% block title %}Firewall — VoxiDet{% endblock %}
+{% set active_page = 'firewall' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Firewall</h1>
+    <p class="page-subtitle">Reglas de red del servidor — se aplican vía nftables en tiempo real.</p>
+  </div>
+  <form method="post" action="{{ admin_prefix }}/firewall/sync" style="display:inline;">
+    <button type="submit" class="btn btn-ghost" title="Re-aplicar todas las reglas ahora">
+      Sincronizar
+    </button>
+  </form>
+</div>
+
+{% if request.query_params.get('added') %}
+<div class="alert alert-success">Regla agregada y aplicada.</div>
+{% elif request.query_params.get('deleted') %}
+<div class="alert alert-success">Regla eliminada y aplicada.</div>
+{% elif request.query_params.get('synced') %}
+<div class="alert alert-success">nftables sincronizado.</div>
+{% elif request.query_params.get('unban_queued') %}
+<div class="alert alert-success">Desbaneo encolado — se aplica en menos de 1 minuto (el panel corre en Docker, no puede llamar fail2ban directo en el host).</div>
+{% elif request.query_params.get('err') == 'ip' %}
+<div class="alert alert-error">Ingresa una IP válida.</div>
+{% endif %}
+
+{# Formulario agregar #}
+<div class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-bottom:1rem; font-size:.95rem; color:var(--text);">Nueva regla</h3>
+  <form method="post" action="{{ admin_prefix }}/firewall/add" style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:flex-end;">
+
+    <div style="display:flex; flex-direction:column; gap:.3rem;">
+      <label style="font-size:.75rem; color:var(--muted);">IP / CIDR</label>
+      <input type="text" name="ip" placeholder="1.2.3.4 o 10.0.0.0/24" required
+             style="padding:.5rem .75rem; background:var(--surface); border:1px solid var(--border);
+                    border-radius:6px; color:var(--text); font-size:.85rem; width:220px;">
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:.3rem;">
+      <label style="font-size:.75rem; color:var(--muted);">Acción</label>
+      <select name="action" id="action-select" onchange="toggleServiceField()"
+              style="padding:.5rem .75rem; background:var(--surface); border:1px solid var(--border);
+                     border-radius:6px; color:var(--text); font-size:.85rem;">
+        <option value="deny">DENY — bloquear</option>
+        <option value="allow">ALLOW — permitir</option>
+      </select>
+    </div>
+
+    <div id="service-field" style="display:none; flex-direction:column; gap:.3rem;">
+      <label style="font-size:.75rem; color:var(--muted);">Servicio</label>
+      <select name="service"
+              style="padding:.5rem .75rem; background:var(--surface); border:1px solid var(--border);
+                     border-radius:6px; color:var(--text); font-size:.85rem;">
+        <option value="all">Todos los puertos</option>
+        <option value="api">API — puerto 8000</option>
+        <option value="ssh">SSH — puerto auto-detectado</option>
+      </select>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:.3rem;">
+      <label style="font-size:.75rem; color:var(--muted);">Descripción</label>
+      <input type="text" name="description" placeholder="Ej: nodo Asterisk 1"
+             style="padding:.5rem .75rem; background:var(--surface); border:1px solid var(--border);
+                    border-radius:6px; color:var(--text); font-size:.85rem; width:200px;">
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="padding:.5rem 1.25rem;">Agregar</button>
+  </form>
+</div>
+
+{# Tabla de reglas #}
+<div class="card">
+  {% if rules %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>IP / CIDR</th>
+        <th>Acción</th>
+        <th>Servicio</th>
+        <th>Descripción</th>
+        <th>Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in rules %}
+    <tr style="{% if not r.active %}opacity:.45;{% endif %}">
+      <td><code style="font-size:.85rem; color:var(--signal);">{{ r.ip }}</code></td>
+      <td>
+        {% if r.action == 'deny' %}
+        <span class="badge badge-red">DENY</span>
+        {% else %}
+        <span class="badge badge-green">ALLOW</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if r.action == 'deny' %}
+        <span class="badge badge-gray">—</span>
+        {% elif r.service == 'api' %}
+        <span class="badge badge-blue">API :8000</span>
+        {% elif r.service == 'ssh' %}
+        <span class="badge badge-yellow">SSH</span>
+        {% else %}
+        <span class="badge badge-gray">Todos</span>
+        {% endif %}
+      </td>
+      <td style="font-size:.82rem; color:var(--muted);">{{ r.description or '—' }}</td>
+      <td>
+        <form method="post" action="{{ admin_prefix }}/firewall/{{ r.id }}/toggle" style="display:inline;">
+          <button type="submit" class="btn btn-sm" style="font-size:.72rem; background:none; border:none; padding:0;">
+            {{ active_badge(r.active, true_label='Activa', false_label='Inactiva', false_class='badge-gray') }}
+          </button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="{{ admin_prefix }}/firewall/{{ r.id }}/delete" style="display:inline;"
+              onsubmit="return confirm('Eliminar regla {{ r.ip }}?');">
+          <button type="submit" class="btn btn-sm btn-danger" style="font-size:.72rem;">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No hay reglas configuradas. El servidor acepta todas las conexiones en el puerto API.</p>
+  {% endif %}
+</div>
+
+<div class="card" style="margin-top:1.25rem; font-size:.82rem; color:var(--muted); line-height:1.7;">
+  <strong style="color:var(--text);">Comportamiento:</strong>
+  <ul style="margin:.5rem 0 0 1.2rem;">
+    <li><strong>DENY</strong> — bloquea la IP en la red (antes de que llegue a la aplicación)</li>
+    <li><strong>ALLOW + SSH</strong> — whitelista la IP para SSH. Si hay alguna regla SSH-allow, el resto queda bloqueado</li>
+    <li><strong>ALLOW + API</strong> — whitelista la IP para el puerto 8000. Si hay alguna regla API-allow, el resto queda bloqueado</li>
+    <li>Sin reglas API: el puerto 8000 queda abierto, protegido solo por API key</li>
+    <li>Los cambios se aplican inmediatamente vía nftables</li>
+  </ul>
+</div>
+
+{# IPs baneadas por fail2ban #}
+<div class="card" style="margin-top:1.25rem;">
+  <h3 style="margin-bottom:.75rem; font-size:.95rem; color:var(--text);">IPs baneadas (fail2ban)</h3>
+  <p style="font-size:.78rem; color:var(--muted); margin-bottom:1rem;">
+    Baneos automáticos por intentos fallidos de login/API/SSH — separado de las reglas de arriba.
+    El estado se actualiza cada minuto (script de host, no en tiempo real).
+  </p>
+  {% set has_banned = fail2ban_status.values() | map('length') | sum > 0 %}
+  {% if has_banned %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Jail</th>
+        <th>IP baneada</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for jail, ips in fail2ban_status.items() %}
+      {% for ip in ips %}
+      <tr>
+        <td><code style="font-size:.82rem; color:var(--muted);">{{ jail }}</code></td>
+        <td><code style="font-size:.85rem; color:var(--signal);">{{ ip }}</code></td>
+        <td>
+          <form method="post" action="{{ admin_prefix }}/firewall/fail2ban/unban" style="display:inline;">
+            <input type="hidden" name="jail" value="{{ jail }}">
+            <input type="hidden" name="ip" value="{{ ip }}">
+            <button type="submit" class="btn btn-sm btn-ghost" style="font-size:.72rem;">Desbanear</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">Sin IPs baneadas.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleServiceField() {
+  const action = document.getElementById('action-select').value;
+  document.getElementById('service-field').style.display = action === 'allow' ? 'flex' : 'none';
+}
+toggleServiceField();
+</script>
+{% endblock %}

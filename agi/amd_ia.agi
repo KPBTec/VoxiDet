@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""
+amd_ia.agi — AGI para Asterisk que delega la detección AMD al servidor IA.
+
+Instalar en: /var/lib/asterisk/agi-bin/amd_ia.agi
+Permisos   : chmod 755 /var/lib/asterisk/agi-bin/amd_ia.agi
+
+Variables de canal que setea:
+  AMDSTATUS  → HUMAN | VOICEMAIL | UNKNOWN | ERROR
+  AMDLAYER   → 1 | 2  (capa que detectó)
+  AMDMS      → latencia en ms reportada por servidor
+
+Configurar en extensions.conf o en /etc/asterisk/amd_ia.conf:
+  AMD_SERVER  = https://tu-vps-ip:8000
+  AMD_API_KEY = tu-api-key
+  AMD_TIMEOUT = 4   (segundos máximo de espera)
+"""
+
+import sys
+import os
+import json
+import tempfile
+import configparser
+import time
+import urllib.request
+import urllib.error
+
+# ─── AGI helpers ─────────────────────────────────────────────────────────────
+
+def agi_send(cmd: str) -> str:
+    sys.stdout.write(cmd + "\n")
+    sys.stdout.flush()
+    return sys.stdin.readline().strip()
+
+
+def agi_get_variable(name: str) -> str:
+    resp = agi_send(f"GET VARIABLE {name}")
+    # respuesta: 200 result=1 (valor)
+    if "(" in resp and ")" in resp:
+        return resp.split("(")[1].rstrip(")")
+    return ""
+
+
+def agi_set_variable(name: str, value: str):
+    agi_send(f"SET VARIABLE {name} {value}")
+
+
+def agi_verbose(msg: str, level: int = 1):
+    agi_send(f'VERBOSE "{msg}" {level}')
+
+
+def agi_record_file(filename: str, fmt: str, escape: str, timeout_ms: int, silence_ms: int):
+    """Graba audio del canal a un archivo."""
+    agi_send(
+        f"RECORD FILE {filename} {fmt} {escape} {timeout_ms} s={silence_ms}"
+    )
+
+
+# ─── Config ──────────────────────────────────────────────────────────────────
+
+def load_config() -> dict:
+    """
+    Carga configuración desde /etc/asterisk/amd_ia.conf
+    o desde variables de entorno como fallback.
+    """
+    cfg = {
+        "server":  os.getenv("AMD_SERVER",  "http://127.0.0.1:8000"),
+        "api_key": os.getenv("AMD_API_KEY", ""),
+        "timeout": int(os.getenv("AMD_TIMEOUT", "4")),
+    }
+
+    conf_file = "/etc/asterisk/amd_ia.conf"
+    if os.path.exists(conf_file):
+        parser = configparser.ConfigParser()
+        parser.read(conf_file)
+        if "amd" in parser:
+            cfg["server"]  = parser["amd"].get("server",  cfg["server"])
+            cfg["api_key"] = parser["amd"].get("api_key", cfg["api_key"])
+            cfg["timeout"] = int(parser["amd"].get("timeout", cfg["timeout"]))
+
+    return cfg
+
+
+# ─── Main ─────────────────────────────────────────────────────────────────────
+
+def main():
+    # Leer variables AGI del stdin
+    agi_vars = {}
+    while True:
+        line = sys.stdin.readline().strip()
+        if not line:
+            break
+        if ":" in line:
+            k, v = line.split(":", 1)
+            agi_vars[k.strip()] = v.strip()
+
+    unique_id = agi_vars.get("agi_uniqueid", "unknown")
+    caller_id = agi_vars.get("agi_callerid", "unknown")
+
+    agi_verbose(f"AMD-IA iniciado uid={unique_id}")
+
+    cfg = load_config()
+
+    if not cfg["api_key"]:
+        agi_verbose("AMD-IA ERROR: AMD_API_KEY no configurado", 1)
+        agi_set_variable("AMDSTATUS", "ERROR")
+        return
+
+    # Grabar 2.5 segundos de audio en /tmp
+    with tempfile.NamedTemporaryFile(suffix="", delete=False, prefix=f"amd_{unique_id}") as tf:
+        tmp_base = tf.name  # sin extensión — Asterisk agrega .wav
+
+    wav_file = tmp_base + ".wav"
+
+    try:
+        # RECORD FILE: graba 2500ms, corta si hay 1000ms de silencio
+        agi_record_file(tmp_base, "wav", "#", 2500, 1000)
+
+        if not os.path.exists(wav_file):
+            agi_verbose("AMD-IA: no se grabó audio → UNKNOWN")
+            agi_set_variable("AMDSTATUS", "UNKNOWN")
+            return
+
+        # Enviar al servidor AMD (multipart manual — solo stdlib)
+        with open(wav_file, "rb") as f:
+            audio_bytes = f.read()
+
+        boundary = "----AMDIABoundary"
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="audio"; filename="audio.wav"\r\n'
+            f"Content-Type: audio/wav\r\n\r\n"
+        ).encode() + audio_bytes + f"\r\n--{boundary}--\r\n".encode()
+
+        req = urllib.request.Request(
+            f"{cfg['server']}/amd",
+            data=body,
+            headers={
+                "X-API-Key":    cfg["api_key"],
+                "X-Call-ID":    unique_id,
+                "X-Caller-ID":  caller_id,
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            },
+            method="POST",
+        )
+
+        with urllib.request.urlopen(req, timeout=cfg["timeout"]) as r:
+            data = json.loads(r.read().decode())
+
+        status     = data.get("status", "UNKNOWN")
+        layer      = str(data.get("layer", 0))
+        latency_ms = str(data.get("latency_ms", 0))
+
+        agi_verbose(f"AMD-IA resultado: {status} layer={layer} {latency_ms}ms")
+
+        agi_set_variable("AMDSTATUS", status)
+        agi_set_variable("AMDLAYER",  layer)
+        agi_set_variable("AMDMS",     latency_ms)
+
+    except urllib.error.URLError as e:
+        agi_verbose(f"AMD-IA: timeout/error conectando servidor → UNKNOWN ({e})")
+        agi_set_variable("AMDSTATUS", "UNKNOWN")
+    except Exception as e:
+        agi_verbose(f"AMD-IA error: {e}")
+        agi_set_variable("AMDSTATUS", "ERROR")
+    finally:
+        # Limpiar archivo temporal
+        if os.path.exists(wav_file):
+            os.unlink(wav_file)
+
+
+if __name__ == "__main__":
+    main()

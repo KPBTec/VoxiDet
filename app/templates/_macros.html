@@ -1,0 +1,7 @@
+{# Badge de estado activo/inactivo — reemplaza el mismo {% if %}/{% else %}
+   de badge-green/badge-red repetido en clients.html, users.html y
+   firewall.html. Mismo concepto que StatusBadge.tsx de VoxiKam (ahí una
+   sola función de variante por tipo de dato, acá un macro por caso de uso). #}
+{% macro active_badge(is_active, true_label='Activo', false_label='Inactivo', false_class='badge-red') %}
+<span class="badge {{ 'badge-green' if is_active else false_class }}">{{ true_label if is_active else false_label }}</span>
+{%- endmacro %}

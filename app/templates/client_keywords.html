@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Keywords — {{ client.name }} — VoxiDet{% endblock %}
+{% set active_page = 'clients' %}
+
+{% block head %}
+<style>
+  .kw-grid      { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .kw-row td    { vertical-align: middle; }
+  .kw-inactive  { opacity: .45; text-decoration: line-through; }
+  .add-form     { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
+  <a href="{{ admin_prefix }}/clients" class="btn btn-ghost btn-sm">← Volver</a>
+  <h2 style="margin:0;">Keywords de <strong>{{ client.name }}</strong></h2>
+</div>
+
+<p class="muted" style="margin-bottom:1rem; font-size:.87rem;">
+  Estas keywords se suman a las globales solo para este cliente.
+  Útil cuando un cliente detecta palabras o frases específicas de su industria.
+</p>
+
+<div class="card">
+  <form method="post" action="{{ admin_prefix }}/clients/{{ client.id }}/keywords/add" class="add-form">
+    <input type="text" name="word" placeholder="nueva keyword o frase" required
+           style="text-transform:lowercase; min-width:200px;" autocomplete="off">
+    <select name="type" required>
+      <option value="HUMAN">HUMAN</option>
+      <option value="VOICEMAIL">VOICEMAIL</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">+ Agregar</button>
+  </form>
+  <p class="muted" style="font-size:.8rem; margin:.4rem 0 0">
+    Acepta palabras (<code>presente</code>) o frases (<code>un momento por favor</code>).
+    Si una keyword existe en ambos tipos, VOICEMAIL siempre gana.
+    Las keywords globales se siguen aplicando también.
+  </p>
+</div>
+
+<div class="kw-grid">
+  {# HUMAN #}
+  <div class="card">
+    <h3 style="margin-top:0; color:#34d399">
+      HUMAN &nbsp;<span class="muted" style="font-size:.8rem; font-weight:400">({{ human|length }})</span>
+    </h3>
+    <table>
+      <thead>
+        <tr><th>Keyword</th><th style="width:90px">Activa</th><th style="width:60px"></th></tr>
+      </thead>
+      <tbody>
+      {% for k in human %}
+        <tr class="kw-row">
+          <td class="{{ 'kw-inactive' if not k.active else '' }}">
+            {{ k.word }}
+            {% if ' ' in k.word %}<span style="font-size:.68rem; color:#6b7280; margin-left:.3rem;">[frase]</span>{% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ admin_prefix }}/clients/{{ client.id }}/keywords/{{ k.id }}/toggle" style="margin:0">
+              <button class="btn btn-sm {{ 'btn-success' if k.active else 'btn-ghost' }}">
+                {{ '✓' if k.active else '○' }}
+              </button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="{{ admin_prefix }}/clients/{{ client.id }}/keywords/{{ k.id }}/delete"
+                  onsubmit="return confirm('¿Eliminar «{{ k.word }}»?')" style="margin:0">
+              <button class="btn btn-sm btn-danger">✕</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="empty">Sin keywords HUMAN para este cliente</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# VOICEMAIL #}
+  <div class="card">
+    <h3 style="margin-top:0; color:#f87171">
+      VOICEMAIL &nbsp;<span class="muted" style="font-size:.8rem; font-weight:400">({{ voicemail|length }})</span>
+    </h3>
+    <table>
+      <thead>
+        <tr><th>Keyword</th><th style="width:90px">Activa</th><th style="width:60px"></th></tr>
+      </thead>
+      <tbody>
+      {% for k in voicemail %}
+        <tr class="kw-row">
+          <td class="{{ 'kw-inactive' if not k.active else '' }}">
+            {{ k.word }}
+            {% if ' ' in k.word %}<span style="font-size:.68rem; color:#6b7280; margin-left:.3rem;">[frase]</span>{% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ admin_prefix }}/clients/{{ client.id }}/keywords/{{ k.id }}/toggle" style="margin:0">
+              <button class="btn btn-sm {{ 'btn-success' if k.active else 'btn-ghost' }}">
+                {{ '✓' if k.active else '○' }}
+              </button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="{{ admin_prefix }}/clients/{{ client.id }}/keywords/{{ k.id }}/delete"
+                  onsubmit="return confirm('¿Eliminar «{{ k.word }}»?')" style="margin:0">
+              <button class="btn btn-sm btn-danger">✕</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="empty">Sin keywords VOICEMAIL para este cliente</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

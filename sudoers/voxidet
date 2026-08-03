@@ -1,0 +1,11 @@
+# VoxiDet — permisos sudo para el usuario voxidet
+# Copiado por deploy.sh a /etc/sudoers.d/voxidet
+# Validar con: visudo -c -f /etc/sudoers.d/voxidet
+
+# Permite recargar nftables (firewall desde panel web)
+voxidet ALL=(ALL) NOPASSWD: /usr/sbin/nft
+
+# Permite ver/desbanear IPs de fail2ban (script de host que sirve al panel)
+voxidet ALL=(ALL) NOPASSWD: /usr/bin/fail2ban-client
+
+# NO se permite ningún otro comando sudo

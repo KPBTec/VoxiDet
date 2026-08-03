@@ -1,0 +1,139 @@
+# Nombre de proyecto fijo — sin esto, Docker Compose lo deriva del nombre del
+# directorio actual (ahora "docker/" en vez de "voxidet/"), lo que renombra
+# red/volúmenes a "docker_*" y hace que no reconozca los volúmenes/contenedores
+# ya existentes del proyecto "voxidet" (huérfanos, incluye los datos migrados).
+name: voxidet
+
+services:
+
+  mysql:
+    image: mysql:8.0.33
+    container_name: voxidet-mysql
+    restart: always
+    # --innodb-buffer-pool-size y --max-connections: calculados por deploy.sh
+    # (ver sección "Autotuneo de recursos") — sin esto MySQL usa el default de
+    # 128MB/151 conexiones sin importar cuánta RAM/workers tenga el servidor,
+    # y con varios workers de la API (10+20 conexiones c/u) 151 se queda corto.
+    command: --innodb-buffer-pool-size=${MYSQL_BUFFER_POOL:-256M} --max-connections=${MYSQL_MAX_CONNECTIONS:-151}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: voxidet_db
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: America/Lima
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - voxidet_internal
+    ports:
+      - "0.0.0.0:3306:3306"
+    deploy:
+      resources:
+        limits:
+          memory: ${MYSQL_MEM_LIMIT:-512M}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: voxidet-redis
+    restart: always
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --bind 0.0.0.0
+      --protected-mode yes
+      --loglevel warning
+      --save ""
+      --appendonly no
+    networks:
+      - voxidet_internal
+    # NO expone puerto al exterior
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: voxidet-api
+    restart: always
+    # Docker por default da 10s antes de SIGKILL — menos que el
+    # --graceful-timeout 30 de gunicorn (Dockerfile). Sin esto, un `docker
+    # compose down`/restart durante un deploy podría matar en seco llamadas
+    # AMD en curso en vez de dejar que gunicorn las termine limpio.
+    stop_grace_period: 35s
+    env_file: ../credentials.conf   # pasa GROQ_API_KEY_1, _2, DEEPGRAM_API_KEY_1, etc.
+    ports:
+      - "0.0.0.0:8000:8000"     # acceso directo por IP — cambiar a 127.0.0.1 si usas Cloudflare Tunnel
+    ulimits:
+      nofile:
+        soft: ${NOFILE_LIMIT:-65536}
+        hard: ${NOFILE_LIMIT:-65536}
+    deploy:
+      resources:
+        limits:
+          cpus: "${API_CPU_LIMIT:-2}"
+          memory: ${API_MEM_LIMIT:-1G}
+        reservations:
+          cpus: "1"
+          memory: 512M
+    environment:
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DB: voxidet_db
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_CACHE_TTL: 300          # segundos que vive una api-key en cache
+      GROQ_API_KEY:      ${GROQ_API_KEY:-}
+      GROQ_API_KEYS:     ${GROQ_API_KEYS:-}
+      DEEPGRAM_API_KEY:   ${DEEPGRAM_API_KEY:-}
+      DEEPGRAM_API_KEYS:  ${DEEPGRAM_API_KEYS:-}
+      FIREWORKS_API_KEY:  ${FIREWORKS_API_KEY:-}
+      FIREWORKS_API_KEYS: ${FIREWORKS_API_KEYS:-}
+      AUDIO_MAX_SECONDS: 3
+      LOG_LEVEL: info
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8000}
+      ADMIN_KEY:      ${ADMIN_KEY}
+      ADMIN_PREFIX:   ${ADMIN_PREFIX:-/admin}
+      ADMIN_USER:     ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SECRET_KEY:     ${SECRET_KEY}
+      TZ:             America/Lima
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - voxidet_internal
+    volumes:
+      - ../app:/srv/app    # hot-reload en desarrollo
+      - ../cli:/srv/cli
+      - /opt/voxidet/models-local:/srv/models-local:ro  # modelos locales ASR (read-only)
+      - /opt/voxidet/logs:/srv/logs    # bind mount (no volumen nombrado) — fail2ban
+                                       # corre en el host y necesita leer security.log directo
+
+volumes:
+  mysql_data:
+
+networks:
+  voxidet_internal:
+    driver: bridge
+    internal: false   # el api necesita salir a Deepgram

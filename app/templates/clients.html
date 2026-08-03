@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% from "_macros.html" import active_badge %}
+{% block title %}Clientes — VoxiDet{% endblock %}
+{% set active_page = 'clients' %}
+
+{% block head %}
+<style>
+.modal-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.65);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 500px;
+  max-width: 95vw;
+  padding: 1.75rem;
+}
+.modal h3 { margin-bottom: 1.4rem; font-size: 1.05rem; }
+.modal .field { margin-bottom: 1rem; }
+.modal .field label {
+  display: block; font-size: .78rem;
+  color: var(--muted); margin-bottom: .3rem; text-transform: uppercase; letter-spacing: .04em;
+}
+.modal .field input,
+.modal .field select { width: 100%; }
+.modal-section {
+  border-top: 1px solid var(--border);
+  margin-top: 1.2rem;
+  padding-top: 1.2rem;
+}
+.modal-section-title {
+  font-size: .72rem; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); margin-bottom: .8rem;
+}
+.modal-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.modal-actions .spacer { flex: 1; }
+.provider-inline { display: flex; align-items: center; gap: .5rem; }
+.provider-inline select { font-size: .82rem; padding: .2rem .4rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Clientes</h2>
+  <button class="btn btn-primary" onclick="toggleForm()">+ Nuevo cliente</button>
+</div>
+
+{# Formulario nuevo cliente #}
+<div id="new-client-form" class="card" style="display:none; margin-bottom:1.5rem;">
+  <h3 style="margin-bottom:1rem;">Crear cliente</h3>
+  <form method="post" action="{{ admin_prefix }}/clients/create">
+    <div class="form-grid">
+      <div class="field">
+        <label>Nombre</label>
+        <input name="name" type="text" required placeholder="Ej: vd1atk-principal">
+      </div>
+      <div class="field">
+        <label>Límite diario de llamadas</label>
+        <input name="limit" type="number" value="500000" min="0">
+      </div>
+      <div class="field">
+        <label>Proveedor transcripción</label>
+        <select name="provider">
+          {% set _labels = {"groq":"Groq Whisper","deepgram":"Deepgram Nova","deepgramv2":"Deepgram Nova v2 ⚡","fireworks":"Fireworks Whisper","together":"Together AI","openai":"OpenAI Transcribe","vosk":"Vosk Batch (local)","vosk_stream":"Vosk Streaming (local)","sherpa":"Sherpa-onnx (local)","sherpa_large":"Sherpa Whisper Large (local, lento)"} %}
+          {% for p in active_providers %}
+            <option value="{{ p }}">{{ _labels.get(p, p) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>IPs permitidas <small>(vacío = sin restricción)</small></label>
+        <input name="ips" type="text" placeholder="190.1.2.3,190.1.2.4 o 190.0.0.0/24">
+      </div>
+      <div class="field">
+        <label>Notas</label>
+        <input name="notes" type="text" placeholder="Opcional">
+      </div>
+    </div>
+    <div style="margin-top:1rem; display:flex; gap:.5rem;">
+      <button type="submit" class="btn btn-primary">Crear</button>
+      <button type="button" class="btn btn-ghost" onclick="toggleForm()">Cancelar</button>
+    </div>
+  </form>
+</div>
+
+{# Tabla #}
+<div class="card" style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Estado</th>
+        <th>Proveedor</th>
+        <th>Límite/día</th>
+        <th>Hoy</th>
+        <th>IPs permitidas</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in clients %}
+    <tr>
+      <td><strong>{{ c.name }}</strong></td>
+      <td>{{ active_badge(c.active) }}</td>
+
+      {# Proveedor — selector inline (solo proveedores activos) #}
+      <td>
+        <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/provider"
+              class="provider-inline">
+          {% set _pcolors = {"groq":"#3b82f6","deepgram":"#a855f7","deepgramv2":"#10b981","fireworks":"#f59e0b","together":"#06b6d4","openai":"#10a37f","vosk":"#8b5cf6","vosk_stream":"#8b5cf6","sherpa":"#8b5cf6","sherpa_large":"#ef4444"} %}
+          {% set _labels  = {"groq":"GROQ","deepgram":"DEEPGRAM","deepgramv2":"DEEPGRAM v2 ⚡","fireworks":"FIREWORKS","together":"TOGETHER AI","openai":"OPENAI","vosk":"VOSK BATCH","vosk_stream":"VOSK STREAM","sherpa":"SHERPA LOCAL","sherpa_large":"SHERPA LARGE (LENTO)"} %}
+          <select name="provider" onchange="this.form.submit()"
+                  style="background:transparent; border:1px solid var(--border); border-radius:4px; color:{{ _pcolors.get(c.provider, '#6b7280') }}; font-weight:600; font-size:.78rem;">
+            {% for p in active_providers %}
+              <option value="{{ p }}" {% if c.provider == p %}selected{% endif %}>{{ _labels.get(p, p|upper) }}</option>
+            {% endfor %}
+            {# Si el proveedor actual está inactivo, mostrarlo igual para no romper la selección #}
+            {% if c.provider not in active_providers %}
+              <option value="{{ c.provider }}" selected style="color:#ef4444;">{{ _labels.get(c.provider, c.provider|upper) }} (inactivo)</option>
+            {% endif %}
+          </select>
+        </form>
+      </td>
+
+      <td>{{ "{:,}".format(c.daily_limit) }}</td>
+      <td>
+        <span title="{{ c.today_human }} human / {{ c.today_voicemail }} vm">
+          {{ "{:,}".format(c.today_calls) }}
+        </span>
+      </td>
+      <td style="font-size:.78rem; color:var(--muted); max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+          title="{{ c.allowed_ips or '' }}">
+        {{ c.allowed_ips or "cualquier IP" }}
+      </td>
+      <td>
+        <button class="btn btn-sm btn-primary"
+                onclick="openEdit(this)"
+                data-id="{{ c.id }}"
+                data-name="{{ c.name | e }}"
+                data-limit="{{ c.daily_limit }}"
+                data-ips="{{ (c.allowed_ips or '') | e }}"
+                data-active="{{ c.active | tojson }}"
+                data-url="{{ (public_url ~ '/install/' ~ c.install_token) | e }}">Editar</button>
+        <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/amd-mode" style="display:inline;">
+          <select name="mode" onchange="this.form.submit()"
+                  title="Batch: graba 2.5s y envía WAV (más estable) · Stream: EAGI en tiempo real (alta latencia bajo carga)"
+                  style="background:transparent; border:1px solid var(--border); border-radius:4px; font-size:.72rem; padding:.15rem .3rem; color:{{ '#f59e0b' if c.amd_mode == 'stream' else 'var(--text)' }};">
+            <option value="batch"  {% if c.amd_mode != 'stream' %}selected{% endif %}>Batch</option>
+            <option value="stream" {% if c.amd_mode == 'stream' %}selected{% endif %}>Stream</option>
+          </select>
+        </form>
+        <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/amd-bias" style="display:inline;">
+          <select name="bias" onchange="this.form.submit()"
+                  title="Conservador (default): ante duda en la transcripción, asume VOICEMAIL. Agresivo: ante duda, UNKNOWN — requiere que el dialplan del cliente enrute UNKNOWN al agente, si no queda igual que conservador."
+                  style="background:transparent; border:1px solid var(--border); border-radius:4px; font-size:.72rem; padding:.15rem .3rem; color:{{ 'var(--signal)' if c.amd_bias == 'aggressive' else 'var(--text)' }};">
+            <option value="conservative" {% if c.amd_bias != 'aggressive' %}selected{% endif %}>Conservador</option>
+            <option value="aggressive"   {% if c.amd_bias == 'aggressive' %}selected{% endif %}>Agresivo</option>
+          </select>
+        </form>
+        <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/keywords-mode" style="display:inline;">
+          <select name="mode" onchange="this.form.submit()"
+                  title="Global: solo keywords globales · Custom: keywords globales + propias del cliente"
+                  style="background:transparent; border:1px solid var(--border); border-radius:4px; font-size:.72rem; padding:.15rem .3rem; color:{{ 'var(--signal)' if c.keywords_mode == 'custom' else 'var(--text)' }};">
+            <option value="global" {% if c.keywords_mode != 'custom' %}selected{% endif %}>Global</option>
+            <option value="custom" {% if c.keywords_mode == 'custom' %}selected{% endif %}>Custom</option>
+          </select>
+        </form>
+        {% if c.keywords_mode == 'custom' %}
+        <a href="{{ admin_prefix }}/clients/{{ c.id }}/keywords"
+           class="btn btn-sm btn-ghost" title="Editar keywords de este cliente"
+           style="font-size:.72rem;">KW</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="empty">No hay clientes registrados. Crea el primero.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# Modal edición #}
+<div class="modal-backdrop" id="edit-modal" onclick="closeOnBackdrop(event)">
+  <div class="modal">
+    <h3 id="modal-title">Editar cliente</h3>
+
+    {# Nombre #}
+    <div class="field">
+      <label>Nombre</label>
+      <form method="post" id="form-name" action="">
+        <div style="display:flex; gap:.5rem;">
+          <input type="text" name="name" id="modal-name" required style="flex:1">
+          <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+
+    {# Límite diario #}
+    <div class="field">
+      <label>Límite diario de llamadas <small style="text-transform:none">(0 = sin límite)</small></label>
+      <form method="post" id="form-limit" action="">
+        <div style="display:flex; gap:.5rem;">
+          <input type="number" name="limit" id="modal-limit" min="0" style="flex:1">
+          <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+
+    {# IPs #}
+    <div class="field">
+      <label>IPs permitidas <small style="text-transform:none">(vacío = sin restricción)</small></label>
+      <form method="post" id="form-ips" action="">
+        <div style="display:flex; gap:.5rem;">
+          <input type="text" name="ips" id="modal-ips"
+                 placeholder="190.1.2.3,190.0.0.0/24" style="flex:1">
+          <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+
+    {# Acciones #}
+    <div class="modal-section">
+      <div class="modal-section-title">Acciones</div>
+      <div class="modal-actions">
+        <form method="post" id="form-toggle" action=""
+              onsubmit="return confirmToggle()">
+          <button type="submit" id="btn-toggle" class="btn btn-sm btn-warning">Desactivar</button>
+        </form>
+        <form method="post" id="form-rotate-key" action=""
+              onsubmit="return confirm('¿Rotar API key?\nEl AGI instalado dejará de funcionar hasta actualizarlo.')">
+          <button type="submit" class="btn btn-sm btn-ghost">🔑 Rotar key</button>
+        </form>
+        <form method="post" id="form-rotate-token" action=""
+              onsubmit="return confirm('¿Rotar install token?\nLa URL de descarga cambiará.')">
+          <button type="submit" class="btn btn-sm btn-ghost">🔗 Rotar token</button>
+        </form>
+        <button class="btn btn-sm btn-ghost" id="btn-copy-url" onclick="copyInstallModal()">
+          📋 Copiar comando AGI
+        </button>
+      </div>
+    </div>
+
+    {# Zona peligrosa #}
+    <div class="modal-section">
+      <div class="modal-section-title" style="color:#ef4444;">Zona peligrosa</div>
+      <div class="modal-actions">
+        <form method="post" id="form-delete" action=""
+              onsubmit="return confirmDelete()">
+          <button type="submit" class="btn btn-sm btn-danger">🗑 Eliminar cliente</button>
+        </form>
+        <div class="spacer"></div>
+        <button class="btn btn-sm btn-ghost" onclick="closeModal()">Cerrar</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _installUrl   = '';
+let _clientName   = '';
+let _clientActive = false;
+
+function toggleForm() {
+  const f = document.getElementById('new-client-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function openEdit(btn) {
+  const id         = btn.dataset.id;
+  const name       = btn.dataset.name;
+  const limit      = btn.dataset.limit;
+  const ips        = btn.dataset.ips;
+  const active     = btn.dataset.active === 'true';
+  const installUrl = btn.dataset.url;
+  const p = '{{ admin_prefix }}';
+  _installUrl   = installUrl;
+  _clientName   = name;
+  _clientActive = active;
+
+  document.getElementById('modal-title').textContent = 'Editar — ' + name;
+  document.getElementById('modal-name').value        = name;
+  document.getElementById('modal-limit').value       = limit;
+  document.getElementById('modal-ips').value         = ips;
+
+  document.getElementById('form-name').action         = p + '/clients/' + id + '/name';
+  document.getElementById('form-limit').action        = p + '/clients/' + id + '/limit';
+  document.getElementById('form-ips').action          = p + '/clients/' + id + '/ips';
+  document.getElementById('form-toggle').action       = p + '/clients/' + id + '/toggle';
+  document.getElementById('form-rotate-key').action   = p + '/clients/' + id + '/rotate-key';
+  document.getElementById('form-rotate-token').action = p + '/clients/' + id + '/rotate-token';
+  document.getElementById('form-delete').action       = p + '/clients/' + id + '/delete';
+
+  const toggleBtn = document.getElementById('btn-toggle');
+  toggleBtn.textContent = active ? 'Desactivar' : 'Activar';
+  toggleBtn.className   = 'btn btn-sm ' + (active ? 'btn-warning' : 'btn-success');
+
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+}
+
+function closeOnBackdrop(e) {
+  if (e.target === document.getElementById('edit-modal')) closeModal();
+}
+
+function confirmToggle() {
+  const accion = _clientActive ? 'desactivar' : 'activar';
+  return confirm('¿Deseas ' + accion + ' el cliente "' + _clientName + '"?');
+}
+
+function confirmDelete() {
+  return confirm('⚠️ ¿Eliminar "' + _clientName + '"?\n\nEsto borrará el cliente y TODOS sus logs permanentemente.\nEsta acción no se puede deshacer.');
+}
+
+function copyText(text) {
+  // Funciona en HTTP y HTTPS
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+}
+
+function copyInstallModal() {
+  const btn = document.getElementById('btn-copy-url');
+  const cmd = `wget "${_installUrl}" -O /var/lib/asterisk/agi-bin/amd_ia.agi && chmod 755 /var/lib/asterisk/agi-bin/amd_ia.agi`;
+  copyText(cmd);
+  btn.textContent = '✅ Copiado';
+  setTimeout(() => btn.textContent = '📋 Copiar comando AGI', 2000);
+}
+</script>
+{% endblock %}

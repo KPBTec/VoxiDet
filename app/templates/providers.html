@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Proveedores — VoxiDet{% endblock %}
+{% set active_page = 'providers' %}
+
+{% block head %}
+<style>
+.modal-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.65); z-index: 100;
+  align-items: center; justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); width: 480px; max-width: 95vw; padding: 1.75rem;
+}
+.modal h3 { margin-bottom: 1.4rem; font-size: 1.05rem; }
+.modal .field { margin-bottom: 1rem; }
+.modal .field label {
+  display: block; font-size: .78rem; color: var(--muted);
+  margin-bottom: .3rem; text-transform: uppercase; letter-spacing: .04em;
+}
+.modal .field input,
+.modal .field select { width: 100%; }
+.provider-desc { font-size: .78rem; color: var(--muted); margin-top: .2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>Proveedores de transcripción</h2>
+  <button id="btn-show-inactive" class="btn btn-ghost" onclick="toggleInactive()"
+          style="font-size:.8rem;">
+    👁 Mostrar inactivos
+  </button>
+</div>
+
+{% if request.query_params.get('saved') %}
+<div class="alert alert-success" style="margin-bottom:1rem; padding:.75rem 1rem; background:rgba(16,185,129,.12); border:1px solid #10b981; border-radius:var(--radius); color:#10b981;">
+  ✓ Modelo actualizado correctamente.
+</div>
+{% endif %}
+
+<div class="card" style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Proveedor</th>
+        <th>Modelo actual</th>
+        <th>API Key</th>
+        <th>Actualizado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in providers %}
+    <tr {% if not p.active %}class="row-inactive" style="opacity:.4;"{% endif %}>
+      <td>
+        <strong>{{ p.label }}</strong>
+        <div class="provider-desc">{{ p.description }}</div>
+      </td>
+      <td><code style="font-size:.82rem; background:var(--bg); padding:.2rem .4rem; border-radius:4px; white-space:nowrap;">{{ p.model }}</code></td>
+      <td>
+        {% if p.is_local %}
+          {% if p.has_key %}
+            <span class="badge badge-green">✓ Cargado</span>
+          {% else %}
+            <span class="badge badge-red">Sin modelo local</span>
+          {% endif %}
+        {% else %}
+          {% if p.has_key %}
+            <span class="badge badge-green">✓ Configurada</span>
+          {% else %}
+            <span class="badge badge-red">Sin key en .env</span>
+          {% endif %}
+        {% endif %}
+      </td>
+      <td style="color:var(--muted); font-size:.78rem;">
+        {{ p.updated_at.strftime('%d/%m %H:%M') if p.updated_at else '—' }}
+      </td>
+      <td style="display:flex;gap:.4rem;align-items:center;">
+        {% if p.is_local %}
+        <button class="btn btn-sm btn-primary"
+                onclick="openEdit(this)"
+                data-provider="{{ p.provider }}"
+                data-label="{{ p.label | e }}">
+          Estado
+        </button>
+        {% else %}
+        <a class="btn btn-sm btn-primary" href="{{ admin_prefix }}/providers/keys#section-{{ p.provider }}">
+          Keys y modelo →
+        </a>
+        {% endif %}
+        <form method="POST" action="{{ admin_prefix }}/providers/{{ p.provider }}/toggle" style="display:inline;">
+          <button type="submit" class="btn btn-sm {% if p.active %}btn-ghost{% else %}btn-danger{% endif %}"
+                  style="font-size:.72rem;"
+                  title="{% if p.active %}Desactivar — no aparecerá en el selector de clientes{% else %}Activar{% endif %}">
+            {% if p.active %}Activo{% else %}Inactivo{% endif %}
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# VAD Engine card #}
+<div class="card" style="margin-top:1.5rem;">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h3 style="margin:0 0 .3rem;">Motor VAD (Voice Activity Detection)</h3>
+      <p style="margin:0;font-size:.82rem;color:var(--muted);">
+        Decide cuándo hay voz en el audio antes de enviar al transcriptor.<br>
+        El cambio aplica a todas las llamadas nuevas — sin necesidad de reiniciar.
+      </p>
+    </div>
+    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+      <form method="POST" action="{{ admin_prefix }}/providers/vad-engine" style="display:inline;">
+        <input type="hidden" name="engine" value="stream">
+        <button type="submit" class="btn btn-sm {% if vad_engine == 'stream' %}btn-primary{% else %}btn-ghost{% endif %}"
+                title="Umbral de energía RMS — más liviano, sin dependencias extra">
+          StreamDetector
+        </button>
+      </form>
+      {% if silero_loaded %}
+      <form method="POST" action="{{ admin_prefix }}/providers/vad-engine" style="display:inline;">
+        <input type="hidden" name="engine" value="silero">
+        <button type="submit" class="btn btn-sm {% if vad_engine == 'silero' %}btn-primary{% else %}btn-ghost{% endif %}"
+                title="Red neuronal LSTM — más preciso en audio ruidoso">
+          Silero VAD
+        </button>
+      </form>
+      {% else %}
+      <button class="btn btn-sm btn-ghost" disabled
+              style="opacity:.45;cursor:not-allowed;"
+              title="Agrega LOCAL_SILERO_MODEL=/srv/models-local/silero/silero_vad.onnx al .env y reinicia">
+        Silero VAD &nbsp;<span style="color:#f59e0b;font-size:.7rem;">sin modelo</span>
+      </button>
+      {% endif %}
+    </div>
+  </div>
+  <div style="margin-top:.8rem;font-size:.78rem;color:var(--muted);">
+    <strong>Activo:</strong>
+    {% if vad_engine == 'silero' and silero_loaded %}
+      <span style="color:#8b5cf6;">Silero VAD ✓</span>
+    {% elif vad_engine == 'silero' and not silero_loaded %}
+      <span style="color:#8b5cf6;">Silero VAD</span> → <span style="color:#ef4444;">sin modelo, usando StreamDetector como fallback</span>
+    {% else %}
+      <span style="color:var(--text);">StreamDetector</span>
+    {% endif %}
+    {% if not silero_loaded %}
+    &nbsp;·&nbsp;
+    {% if model_versions.silero %}
+    <span style="color:#f59e0b;">Modelo <code>{{ model_versions.silero }}</code> en disco pero no cargado — reinicia el servidor</span>
+    {% else %}
+    <span style="color:#f59e0b;">Sin modelo — ejecuta <code>sudo bash deploy.sh</code> para descargarlo</span>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{# Modal estado — solo proveedores locales (Vosk/Sherpa), sin keys involucradas.
+   Los proveedores cloud gestionan keys y modelo en /admin/providers/keys. #}
+<div class="modal-backdrop" id="edit-modal" onclick="closeOnBackdrop(event)">
+  <div class="modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem;">
+      <h3 id="modal-title" style="margin:0;">Estado</h3>
+      <button class="btn btn-sm btn-ghost" onclick="loadStatus()" id="btn-load">🔄 Cargar</button>
+    </div>
+    <div id="keys-list" style="display:flex; flex-direction:column; gap:.6rem;">
+      <div style="color:var(--muted); font-size:.82rem; text-align:center; padding:1rem 0;">
+        Presiona "Cargar" para ver el estado del modelo local
+      </div>
+    </div>
+    <div style="display:flex; gap:.5rem; margin-top:1.2rem;">
+      <button class="btn btn-ghost" onclick="closeModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _provider      = '';
+let _showInactive  = false;
+const _prefix = '{{ admin_prefix }}';
+
+function toggleInactive() {
+  _showInactive = !_showInactive;
+  document.querySelectorAll('tr.row-inactive').forEach(tr => {
+    tr.style.display = _showInactive ? '' : 'none';
+  });
+  const btn = document.getElementById('btn-show-inactive');
+  btn.textContent = _showInactive ? '🙈 Ocultar inactivos' : '👁 Mostrar inactivos';
+  btn.classList.toggle('btn-primary', _showInactive);
+  btn.classList.toggle('btn-ghost',   !_showInactive);
+}
+
+// ocultar inactivos al cargar
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('tr.row-inactive').forEach(tr => tr.style.display = 'none');
+});
+
+function openEdit(btn) {
+  _provider = btn.dataset.provider;
+  document.getElementById('modal-title').textContent = 'Estado — ' + btn.dataset.label;
+  document.getElementById('keys-list').innerHTML =
+    '<div style="color:var(--muted);font-size:.82rem;text-align:center;padding:1rem 0;">' +
+    'Presiona "Cargar" para ver el estado del modelo local</div>';
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+}
+
+function closeOnBackdrop(e) {
+  if (e.target === document.getElementById('edit-modal')) closeModal();
+}
+
+async function loadStatus() {
+  const btn = document.getElementById('btn-load');
+  btn.textContent = '⏳ Cargando...'; btn.disabled = true;
+  try {
+    const resp = await fetch(`${_prefix}/providers/${_provider}/models`);
+    const data = await resp.json();
+    const color  = data.loaded ? '#10b981' : '#ef4444';
+    const icon   = data.loaded ? '✓' : '✗';
+    const status = data.loaded ? 'Modelo cargado y listo' : 'Modelo no cargado — corré sudo bash deploy.sh para descargarlo';
+    document.getElementById('keys-list').innerHTML = `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.8rem 1rem;">
+        <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem;">Versión instalada</div>
+        <code style="font-size:.8rem;display:block;word-break:break-all;margin-bottom:.6rem;">${data.version || '(sin modelo — ejecuta deploy.sh)'}</code>
+        <span style="color:${color};font-weight:600;font-size:.85rem;">${icon} ${status}</span>
+      </div>`;
+  } catch(e) {
+    alert('Error: ' + e);
+  } finally {
+    btn.textContent = '🔄 Cargar'; btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}
