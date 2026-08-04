@@ -721,36 +721,31 @@ code {
 .riveted::before { left: 8px; }
 .riveted::after  { right: 8px; }
 
-/* ── Selector de tema (footer del sidebar) ── */
-.theme-picker-wrap {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: .65rem .75rem;
-  margin-bottom: .85rem;
-}
-.theme-picker-label {
-  font-size: .63rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--muted); margin-bottom: .55rem;
-}
-.theme-picker { display: flex; gap: .7rem; justify-content: space-between; }
+/* ── Selector de tema ("Apariencia") — vive como un grupo acordeón más del
+   nav (`.sidebar-link` da el layout de fila/hover/active, esto solo resetea
+   estilos de <button> y define el puntito de color). Antes era una caja
+   suelta pegada en el footer, fuera del menú colapsable — no era una opción
+   real de "Apariencia" como en VoxiKam, era un widget aparte. ── */
 .theme-swatch-item {
-  display: flex; flex-direction: column; align-items: center; gap: .3rem;
-  background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+  width: 100%;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  font-family: inherit;
+  font-size: .83rem;
+  cursor: pointer;
+  text-align: left;
 }
 .theme-swatch {
-  width: 24px; height: 24px; border-radius: 50%;
-  border: 2px solid; box-shadow: var(--shadow-sm);
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid; flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
   transition: transform .15s, box-shadow .15s;
 }
 .theme-swatch-item:hover .theme-swatch { transform: scale(1.15); }
 .theme-swatch-item.active .theme-swatch {
-  box-shadow: 0 0 0 2px var(--bg2), 0 0 0 4px var(--signal);
+  box-shadow: 0 0 0 2px var(--bg2), 0 0 0 3px var(--signal);
 }
-.theme-swatch-item .theme-swatch-label {
-  font-size: .58rem; color: var(--muted); text-transform: uppercase; letter-spacing: .02em;
-}
-.theme-swatch-item.active .theme-swatch-label { color: var(--signal); font-weight: 600; }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }

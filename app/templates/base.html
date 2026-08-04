@@ -37,7 +37,6 @@
       </div>
       <div class="sidebar-title nameplate">Voxi<span style="color:var(--signal)">Det</span></div>
     </a>
-    </div>
 
     <nav class="sidebar-nav">
       {% for item in nav_pinned %}
@@ -64,31 +63,37 @@
         {% endfor %}
       </div>
       {% endfor %}
+
+      {# Apariencia — mismo acordeón que el resto de los grupos de arriba, pero
+         en vez de navegar a una página elige un tema (mismo patrón que
+         VoxiKam: Sidebar.tsx > NavGroup "Apariencia" + ThemePicker dentro del
+         nav, no un widget suelto pegado en el footer como vivía acá antes). #}
+      <button type="button" class="sidebar-section-toggle" data-group="apariencia">
+        Apariencia
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="sidebar-group" data-group="apariencia" role="group" aria-label="Tema">
+        <button type="button" class="theme-swatch-item sidebar-link" data-theme-value="bronce">
+          <span class="theme-swatch" style="background:#16110c;border-color:#dd8b3d"></span>
+          Bronce
+        </button>
+        <button type="button" class="theme-swatch-item sidebar-link" data-theme-value="papel">
+          <span class="theme-swatch" style="background:#f5f0e6;border-color:#dd8b3d"></span>
+          Papel
+        </button>
+        <button type="button" class="theme-swatch-item sidebar-link" data-theme-value="fosforo">
+          <span class="theme-swatch" style="background:#000;border-color:#33cc66"></span>
+          Fósforo
+        </button>
+        <button type="button" class="theme-swatch-item sidebar-link" data-theme-value="vidrio">
+          <span class="theme-swatch" style="background:#f5f5f7;border-color:#dd8b3d"></span>
+          Vidrio
+        </button>
+      </div>
     </nav>
 
     {% set _sess = get_session(request) %}
     <div class="sidebar-footer">
-      <div class="theme-picker-wrap">
-        <div class="theme-picker-label">Tema</div>
-        <div class="theme-picker" role="group" aria-label="Tema">
-          <button type="button" class="theme-swatch-item" data-theme-value="bronce" title="Bronce">
-            <span class="theme-swatch" style="background:#16110c;border-color:#dd8b3d"></span>
-            <span class="theme-swatch-label">Bronce</span>
-          </button>
-          <button type="button" class="theme-swatch-item" data-theme-value="papel" title="Papel">
-            <span class="theme-swatch" style="background:#f5f0e6;border-color:#dd8b3d"></span>
-            <span class="theme-swatch-label">Papel</span>
-          </button>
-          <button type="button" class="theme-swatch-item" data-theme-value="fosforo" title="Fósforo">
-            <span class="theme-swatch" style="background:#000;border-color:#33cc66"></span>
-            <span class="theme-swatch-label">Fósforo</span>
-          </button>
-          <button type="button" class="theme-swatch-item" data-theme-value="vidrio" title="Vidrio">
-            <span class="theme-swatch" style="background:#f5f5f7;border-color:#dd8b3d"></span>
-            <span class="theme-swatch-label">Vidrio</span>
-          </button>
-        </div>
-      </div>
       <div class="sidebar-user">
         <div class="sidebar-user-icon">{{ (_sess.user[0] if _sess else "A") | upper }}</div>
         <div>

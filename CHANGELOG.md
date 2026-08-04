@@ -9,6 +9,13 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.26.4 — 2026-08-04
+
+- Mejorado: el selector de tema visual ahora aparece como una opción propia del menú ("Apariencia"),
+  igual que el resto de las secciones, en vez de un cuadro suelto abajo del todo.
+
+---
+
 ## v1.26.3 — 2026-08-04
 
 - Corregido: el texto debajo del formulario de inicio de sesión ("Voice Detection AI") aparecía todo
