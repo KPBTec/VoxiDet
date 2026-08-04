@@ -69,6 +69,21 @@ class Settings(BaseSettings):
     # webhook, n8n, o un endpoint propio.
     ALERT_WEBHOOK_URL: str = ""
 
+    # Timeouts HTTP de transcripción (capa 2, ASR en la nube) — un valor por
+    # proveedor, compartido entre modo batch (amd_engine.py) y modo stream
+    # (stream.py). Antes cada archivo tenía su propio literal hardcodeado y
+    # quedaron desincronizados (p.ej. together/fireworks: 8.0 en batch vs 5.0
+    # en stream para el mismo proveedor) — acá se unifican al valor más chico
+    # de los dos existentes (salvo que ya coincidieran), porque en modo stream
+    # el presupuesto total por llamada es de solo ~8s (ver MAX_SECS en
+    # stream.py) y un timeout de proveedor demasiado largo ahí no deja margen
+    # para intentar el fallback a otro proveedor dentro de esa ventana.
+    ASR_TIMEOUT_DEEPGRAM:  float = 5.0
+    ASR_TIMEOUT_GROQ:      float = 5.0
+    ASR_TIMEOUT_OPENAI:    float = 8.0
+    ASR_TIMEOUT_TOGETHER:  float = 5.0
+    ASR_TIMEOUT_FIREWORKS: float = 5.0
+
     # Detección de tono de beep de buzón (experimental, solo logging por ahora
     # — ver app/core/tone_detector.py). La frecuencia real depende del
     # operador/central telefónica y NO está calibrada con datos de producción

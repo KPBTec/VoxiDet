@@ -123,7 +123,7 @@ async def layer2_deepgram(audio_bytes: bytes, aggressive: bool = False) -> tuple
                     "Content-Type": "audio/wav",
                 },
                 content=audio_bytes,
-                timeout=4.0,
+                timeout=settings.ASR_TIMEOUT_DEEPGRAM,
             )
             if resp.status_code == 429:
                 log.warning("L2 deepgram: key[%d] límite (429) — rotando", idx)
@@ -211,7 +211,7 @@ async def layer2_groq(audio_bytes: bytes, aggressive: bool = False) -> tuple[str
                 headers={"Authorization": f"Bearer {key}"},
                 files={"file": ("audio.wav", audio_bytes, "audio/wav")},
                 data={"model": model, "language": "es", "response_format": "json"},
-                timeout=5.0,
+                timeout=settings.ASR_TIMEOUT_GROQ,
             )
             if resp.status_code == 200:
                 transcript = resp.json().get("text", "").strip().lower()
@@ -271,7 +271,7 @@ async def layer2_openai(audio_bytes: bytes, aggressive: bool = False) -> tuple[s
                 headers={"Authorization": f"Bearer {key}"},
                 files={"file": ("audio.wav", audio_bytes, "audio/wav")},
                 data={"model": model, "language": "es", "response_format": "json"},
-                timeout=8.0,
+                timeout=settings.ASR_TIMEOUT_OPENAI,
             )
             if resp.status_code == 200:
                 transcript = resp.json().get("text", "").strip().lower()
@@ -321,7 +321,7 @@ async def layer2_together(audio_bytes: bytes, aggressive: bool = False) -> tuple
                 headers={"Authorization": f"Bearer {key}"},
                 files={"file": ("audio.wav", audio_bytes, "audio/wav")},
                 data={"model": model, "language": "es", "response_format": "json"},
-                timeout=8.0,
+                timeout=settings.ASR_TIMEOUT_TOGETHER,
             )
             if resp.status_code == 200:
                 transcript = resp.json().get("text", "").strip().lower()
@@ -371,7 +371,7 @@ async def layer2_fireworks(audio_bytes: bytes, aggressive: bool = False) -> tupl
                 headers={"Authorization": f"Bearer {key}"},
                 files={"file": ("audio.wav", audio_bytes, "audio/wav")},
                 data={"model": model, "language": "es", "response_format": "json"},
-                timeout=8.0,
+                timeout=settings.ASR_TIMEOUT_FIREWORKS,
             )
             if resp.status_code == 200:
                 transcript = resp.json().get("text", "").strip().lower()

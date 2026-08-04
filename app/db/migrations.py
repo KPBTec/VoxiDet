@@ -22,6 +22,7 @@ llamada directo desde `lifespan()` otra vez.
 import logging
 
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from app.db.engine import get_db
 from app.db.clients import (
@@ -106,9 +107,13 @@ async def run_pending_migrations() -> None:
             continue
         log.info("Aplicando migración %s...", version)
         await fn()
-        async with get_db() as db:
-            await db.execute(
-                text("INSERT INTO schema_migrations (version) VALUES (:v)"),
-                {"v": version},
-            )
+        try:
+            async with get_db() as db:
+                await db.execute(
+                    text("INSERT INTO schema_migrations (version) VALUES (:v)"),
+                    {"v": version},
+                )
+        except IntegrityError:
+            log.info("Migración %s ya fue registrada por otro worker.", version)
+            continue
         log.info("Migración %s aplicada.", version)

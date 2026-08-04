@@ -24,6 +24,12 @@
 {% block content %}
 <div class="page-header">
   <h2>Reportes</h2>
+  {% if rows %}
+  <a class="btn btn-sm btn-ghost"
+     href="{{ admin_prefix }}/reports/export.csv?mode={{ mode }}&date={{ selected_day }}&month={{ selected_month }}{% if selected_client %}&client_id={{ selected_client }}{% endif %}">
+    ⬇ Exportar CSV
+  </a>
+  {% endif %}
 </div>
 
 <form method="get" class="rep-controls">
@@ -116,7 +122,16 @@
       {% if total_row %}
       <tr class="total-row">
         <td>TOTAL</td>
-        <td>{{ "{:,}".format(total_row.total) }}</td>
+        <td>
+          {{ "{:,}".format(total_row.total) }}
+          {% if delta_pct is not none %}
+          <span class="{% if delta_pct > 0 %}lat-ok{% elif delta_pct < 0 %}lat-bad{% else %}muted{% endif %}"
+                style="font-size:.72rem;font-weight:600;margin-left:.4rem;"
+                title="Período anterior: {{ '{:,}'.format(prev_total_row.total) }}">
+            {{ "▲" if delta_pct > 0 else ("▼" if delta_pct < 0 else "—") }} {{ delta_pct|abs }}%
+          </span>
+          {% endif %}
+        </td>
         <td>
           <span class="pct-pill pct-green">{{ total_row.human_pct }}%</span>
           <span style="font-size:.72rem;color:var(--muted);margin-left:.25rem;">{{ "{:,}".format(total_row.human) }}</span>

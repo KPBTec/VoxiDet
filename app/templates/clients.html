@@ -52,6 +52,16 @@
   <button class="btn btn-primary" onclick="toggleForm()">+ Nuevo cliente</button>
 </div>
 
+{% if request.query_params.get('created') %}
+<div class="alert alert-success">Cliente creado.</div>
+{% elif request.query_params.get('saved') %}
+<div class="alert alert-success">Cambios guardados.</div>
+{% elif request.query_params.get('rotated') %}
+<div class="alert alert-success">Credencial rotada.</div>
+{% elif request.query_params.get('deleted') %}
+<div class="alert alert-success">Cliente eliminado.</div>
+{% endif %}
+
 {# Formulario nuevo cliente #}
 <div id="new-client-form" class="card" style="display:none; margin-bottom:1.5rem;">
   <h3 style="margin-bottom:1rem;">Crear cliente</h3>

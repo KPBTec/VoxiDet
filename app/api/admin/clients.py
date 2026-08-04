@@ -89,7 +89,7 @@ async def update_limit(
     await update_client_limit(client_id, limit)
     if old:
         await log_audit(_admin_user(request), client_id, "daily_limit", old["daily_limit"], limit)
-    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
+    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients?saved=1", status_code=302)
 
 
 @router.post("/clients/{client_id}/name")
@@ -104,7 +104,7 @@ async def update_name(
     await update_client_name(client_id, name)
     if old:
         await log_audit(_admin_user(request), client_id, "name", old["name"], name)
-    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
+    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients?saved=1", status_code=302)
 
 
 @router.post("/clients/{client_id}/provider")
@@ -170,7 +170,7 @@ async def update_ips(
     await update_client_ips(client_id, ips.strip())
     if old:
         await log_audit(_admin_user(request), client_id, "allowed_ips", old["allowed_ips"], ips.strip())
-    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
+    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients?saved=1", status_code=302)
 
 
 @router.post("/clients/{client_id}/rotate-key")

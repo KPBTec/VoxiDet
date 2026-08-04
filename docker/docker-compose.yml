@@ -27,7 +27,10 @@ services:
     networks:
       - voxidet_internal
     ports:
-      - "0.0.0.0:3306:3306"
+      # Solo loopback — el contenedor `api` habla con MySQL por la red interna
+      # de Docker (`voxidet_internal`), nunca por este puerto publicado. Antes
+      # publicado en 0.0.0.0, exponiendo MySQL a internet sin necesidad real.
+      - "127.0.0.1:3306:3306"
     deploy:
       resources:
         limits:

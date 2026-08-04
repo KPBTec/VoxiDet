@@ -63,6 +63,12 @@ async def amd_detect(
         raise HTTPException(status_code=413, detail="Audio demasiado largo")
     if len(audio_bytes) < 44:   # 44 = tamaño mínimo de header WAV
         raise HTTPException(status_code=400, detail="Audio vacío o inválido")
+    # El chequeo de tamaño solo confirma que hay 44+ bytes — cualquier basura de
+    # ese largo pasaba antes como "audio válido" y terminaba clasificada como una
+    # detección ambigua real (UNKNOWN) en vez de rechazarse como lo que es: no es
+    # WAV. RIFF/WAVE son los primeros 12 bytes de todo header WAV válido.
+    if audio_bytes[0:4] != b"RIFF" or audio_bytes[8:12] != b"WAVE":
+        raise HTTPException(status_code=400, detail="Audio no es un WAV válido")
 
     global active_calls
     active_calls += 1

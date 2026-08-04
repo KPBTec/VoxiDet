@@ -21,6 +21,7 @@ import wave
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.config import settings
 from app.cache.client_cache import (
     check_and_increment_limit,
     get_client_cached,
@@ -167,7 +168,7 @@ async def _transcribe_deepgram(pcm: bytes, session_id: str) -> str:
                     "Content-Type": "audio/wav",
                 },
                 content=wav,
-                timeout=5.0,
+                timeout=settings.ASR_TIMEOUT_DEEPGRAM,
             )
             if resp.status_code == 200:
                 channels = resp.json().get("results", {}).get("channels", [])
@@ -215,7 +216,7 @@ async def _transcribe_groq(pcm: bytes, session_id: str) -> str:
                     "prompt":          _build_groq_prompt(),
                     "response_format": "json",
                 },
-                timeout=5.0,
+                timeout=settings.ASR_TIMEOUT_GROQ,
             )
             if resp.status_code == 200:
                 return resp.json().get("text", "").strip()
@@ -257,7 +258,7 @@ async def _transcribe_openai(pcm: bytes, session_id: str) -> str | None:
             headers={"Authorization": f"Bearer {key}"},
             files={"file": ("audio.wav", wav, "audio/wav")},
             data=data,
-            timeout=8.0,
+            timeout=settings.ASR_TIMEOUT_OPENAI,
         )
         if resp.status_code == 200:
             return resp.json().get("text", "").strip()
@@ -290,7 +291,7 @@ async def _transcribe_together(pcm: bytes, session_id: str) -> str | None:
             headers={"Authorization": f"Bearer {key}"},
             files={"file": ("audio.wav", wav, "audio/wav")},
             data=req_data,
-            timeout=5.0,
+            timeout=settings.ASR_TIMEOUT_TOGETHER,
         )
         if resp.status_code == 200:
             return resp.json().get("text", "").strip()
@@ -317,7 +318,7 @@ async def _transcribe_fireworks(pcm: bytes, session_id: str) -> str | None:
             headers={"Authorization": f"Bearer {key}"},
             files={"file": ("audio.wav", wav, "audio/wav")},
             data={"model": model, "language": "es", "prompt": _build_groq_prompt(), "response_format": "json"},
-            timeout=5.0,
+            timeout=settings.ASR_TIMEOUT_FIREWORKS,
         )
         if resp.status_code == 200:
             return resp.json().get("text", "").strip()

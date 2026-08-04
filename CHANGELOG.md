@@ -9,6 +9,21 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.23.1 — 2026-08-04
+
+- Nuevo: botón para exportar los reportes a CSV, tanto por día como por mes.
+- Nuevo: los reportes ahora muestran la variación (▲/▼) contra el período anterior, junto al total.
+- Mejorado: la pantalla de Clientes ahora confirma visualmente cuando se guarda un cambio (límite,
+  nombre, IPs permitidas) — antes solo pasaba con crear/rotar/eliminar.
+- Corregido: se ajustaron los tiempos de espera de transcripción para que sean consistentes entre el
+  modo por lotes y el modo en tiempo real del mismo proveedor.
+- Mejorado: se reforzó la validación de los archivos de audio recibidos, rechazando de forma más clara
+  cualquier archivo que no sea un audio WAV real.
+- Corregido: el acceso a la base de datos ya no está expuesto a internet, solo accesible desde el
+  propio servidor.
+
+---
+
 ## v1.23.0 — 2026-08-04
 
 - Nuevo: historial de cambios por cliente — cada modificación (límite, IPs, proveedor, activar/desactivar,
