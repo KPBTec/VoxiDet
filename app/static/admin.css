@@ -523,29 +523,46 @@ select option { background: var(--bg2); }
 
 .login-wrap { flex-direction: column; gap: 1.5rem; }
 
-/* Marca — fuera de la tarjeta, mismo patrón que el login de VoxiKam
-   (logo + nombre flotando arriba, la tarjeta blanca solo tiene el form) */
+/* Marca — fuera de la tarjeta, mismo patrón que el login de VoxiKam (logo +
+   nombre flotando arriba, la tarjeta blanca solo tiene el form). VoxiKam usa
+   una sola imagen SVG pre-armada (icono + wordmark + "By KPBTec" en una sola
+   pieza, ratio ~360:82) — acá se arma con HTML/CSS (icono + texto en fila,
+   mismo patrón que ya usa `.sidebar-brand` en el panel, no columna) para
+   llegar al mismo resultado visual: icono y nombre al mismo nivel, no uno
+   arriba del otro. */
 .login-brand {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: .6rem;
+  gap: .85rem;
 }
 .login-logo-icon {
-  width: 46px; height: 46px;
+  width: 58px; height: 58px;
   background: linear-gradient(135deg, var(--signal) 0%, var(--signal-dim) 100%);
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   box-shadow: 0 0 24px rgba(221,139,61,.35);
+}
+.login-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
 }
 .login-brand-title {
   font-family: var(--font-display);
   text-transform: uppercase;
   letter-spacing: .03em;
-  font-size: 1.35rem;
+  font-size: 1.55rem;
   font-weight: 700;
+  line-height: 1;
+}
+.login-brand-sub {
+  font-size: .68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .08em;
 }
 
 .login-card {

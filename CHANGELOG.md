@@ -9,6 +9,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.26.1 — 2026-08-04
+
+- Corregido: en la pantalla de inicio de sesión, el logo y el nombre del producto ahora están alineados
+  al mismo nivel (antes el ícono quedaba arriba y el nombre debajo), igual que en el resto de las
+  plataformas KPBTec.
+
+---
+
 ## v1.26.0 — 2026-08-04
 
 - Mejorado: mayor estabilidad del motor de transcripción local ante ráfagas de llamadas simultáneas,
