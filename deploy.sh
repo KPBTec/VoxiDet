@@ -880,7 +880,16 @@ fi
 # healthcheck — el código quedó desplegado igual, aunque la API haya tardado
 # en responder; un healthcheck lento no significa que la versión no se aplicó.
 if [[ -f "$MARKER_FILE" ]]; then
-    sed -i "s/^VERSION=.*/VERSION=${PLATFORM_VERSION}/" "$MARKER_FILE"
+    # sed con `s/^VERSION=.../` no hace nada (0 reemplazos, exit 0 igual) si el
+    # archivo no tiene ninguna línea VERSION= — pasaba con marcadores viejos de
+    # antes de que este campo existiera, y quedaba reportando "vdesconocida"
+    # para siempre aunque el deploy sí haya actualizado el código. Si no existe
+    # la línea, se agrega en vez de asumir que sed ya la creó.
+    if grep -q "^VERSION=" "$MARKER_FILE"; then
+        sed -i "s/^VERSION=.*/VERSION=${PLATFORM_VERSION}/" "$MARKER_FILE"
+    else
+        echo "VERSION=${PLATFORM_VERSION}" >> "$MARKER_FILE"
+    fi
     ok "Marcador actualizado → v${PLATFORM_VERSION}"
 else
     cat > "$MARKER_FILE" <<EOF

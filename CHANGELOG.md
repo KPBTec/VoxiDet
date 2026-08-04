@@ -9,6 +9,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.26.2 — 2026-08-04
+
+- Corregido: en instalaciones muy antiguas, el instalador podía mostrar la versión instalada como
+  "desconocida" en vez de mostrar el número real, aunque las actualizaciones sí se hubieran aplicado
+  correctamente.
+
+---
+
 ## v1.26.1 — 2026-08-04
 
 - Corregido: en la pantalla de inicio de sesión, el logo y el nombre del producto ahora están alineados
