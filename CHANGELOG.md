@@ -7,6 +7,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.26.10 — 2026-08-04
+
+- Corregido: el proveedor de transcripción local Sherpa-onnx fallaba silenciosamente en todas las
+  llamadas y siempre caía al siguiente proveedor disponible, agregando tiempo de espera innecesario a la
+  detección. Ahora transcribe correctamente.
+
+---
+
 ## v1.26.9 — 2026-08-04
 
 - Corregido: en pantallas anchas quedaba una franja vacía sin usar a la derecha del contenido — ahora

@@ -129,7 +129,12 @@ class SherpaASR:
         samples = self._np.frombuffer(pcm, dtype=self._np.int16).astype(self._np.float32) / 32768.0
         stream.accept_waveform(sample_rate=8000, waveform=samples)
         self._recognizer.decode_stream(stream)
-        return self._recognizer.get_result(stream).text.strip()
+        # El resultado vive en el stream (`stream.result.text`), no en el
+        # recognizer — `OfflineRecognizer` nunca tuvo un método get_result();
+        # esto tiraba AttributeError en el 100% de las llamadas a Sherpa,
+        # cayendo siempre al siguiente proveedor del fallback después de
+        # pagar el costo completo (CPU) del decode que sí había corrido bien.
+        return stream.result.text.strip()
 
 
 # ── Singletons — uno por worker, iniciados en lifespan ───────────────────────
