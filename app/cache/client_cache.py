@@ -81,6 +81,11 @@ async def check_and_increment_limit(client_id: int, daily_limit: int) -> bool:
             await r.expire(key, _seconds_until_midnight())
         if current > daily_limit:
             log.warning("Cliente %s excedió límite diario (%s)", client_id, daily_limit)
+            from app.core.alerting import notify
+            await notify(
+                f"limite_diario:{client_id}",
+                f"cliente id={client_id} está golpeando su límite diario ({daily_limit}) repetidamente",
+            )
             return False
         return True
     except Exception as e:

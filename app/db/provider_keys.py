@@ -12,12 +12,29 @@ funcionando el modelo-por-key que ya tenían cacheado. Las keys nuevas
 guardadas en esta tabla usan id = KEY_ID_OFFSET + id_real_de_fila, para que
 nunca choquen con los índices legacy (nadie va a tener 100.000 keys).
 """
+import json
+
 from sqlalchemy import text
 from app.db.engine import get_db
 from app.config import settings
 from app.core.secrets_crypto import encrypt_key, decrypt_key, mask_key
 
 KEY_ID_OFFSET = 100_000
+
+_ACTIVE_KEYS_CACHE_PREFIX = "amd:active_keys:"
+
+
+async def _invalidate_active_keys_cache(provider: str) -> None:
+    """get_active_keys() se llama hasta 5x por detección (una por proveedor
+    intentado en el fallback) sin caché — cachear evita pegarle a MySQL +
+    desencriptar Fernet en cada request, pero necesita invalidarse en
+    cualquier mutación que cambie qué keys están activas."""
+    try:
+        from app.cache.client_cache import get_redis
+        r = await get_redis()
+        await r.delete(f"{_ACTIVE_KEYS_CACHE_PREFIX}{provider}")
+    except Exception:
+        pass
 
 _ENV_GETTERS = {
     "groq":      lambda: settings.get_groq_keys(),
@@ -65,7 +82,9 @@ async def add_key(provider: str, plaintext: str, model: str = "") -> int:
                      VALUES (:p, :ke, :km, :m)"""),
             {"p": provider, "ke": encrypt_key(plaintext), "km": mask_key(plaintext), "m": model},
         )
-        return result.lastrowid
+        new_id = result.lastrowid
+    await _invalidate_active_keys_cache(provider)
+    return new_id
 
 
 async def list_db_keys(provider: str) -> list[dict]:
@@ -84,10 +103,16 @@ async def list_db_keys(provider: str) -> list[dict]:
 
 async def set_key_active(key_id: int, active: bool) -> None:
     async with get_db() as db:
+        result = await db.execute(
+            text("SELECT provider FROM provider_keys WHERE id=:id"), {"id": key_id}
+        )
+        row = result.first()
         await db.execute(
             text("UPDATE provider_keys SET active=:a WHERE id=:id"),
             {"a": 1 if active else 0, "id": key_id},
         )
+    if row:
+        await _invalidate_active_keys_cache(row[0])
 
 
 async def set_key_model(provider: str, key_id: int, model: str) -> None:
@@ -105,7 +130,13 @@ async def set_key_model(provider: str, key_id: int, model: str) -> None:
 
 async def delete_key(key_id: int) -> None:
     async with get_db() as db:
+        result = await db.execute(
+            text("SELECT provider FROM provider_keys WHERE id=:id"), {"id": key_id}
+        )
+        row = result.first()
         await db.execute(text("DELETE FROM provider_keys WHERE id=:id"), {"id": key_id})
+    if row:
+        await _invalidate_active_keys_cache(row[0])
 
 
 async def get_disabled_legacy_indices(provider: str) -> set[int]:
@@ -131,6 +162,7 @@ async def set_legacy_key_active(provider: str, key_index: int, active: bool) -> 
                 text("INSERT IGNORE INTO provider_legacy_disabled (provider, key_index) VALUES (:p, :i)"),
                 {"p": provider, "i": key_index},
             )
+    await _invalidate_active_keys_cache(provider)
 
 
 async def get_key_model(db_id: int) -> str:
@@ -148,7 +180,23 @@ async def get_active_keys(provider: str) -> list[dict]:
     panel — v1.16.1, provider_legacy_disabled) + DB (id = KEY_ID_OFFSET + fila,
     solo active=1, descifradas en memoria acá mismo).
     Devuelve [{id, key}] — 'key' es texto plano: usar solo en memoria, jamás
-    loguearlo ni devolverlo en una respuesta HTTP."""
+    loguearlo ni devolverlo en una respuesta HTTP.
+
+    Cacheado en Redis (ya desencriptado — mismo modelo de confianza que
+    get_client_cached(), que también cachea el registro completo del
+    cliente) porque se llama hasta 5x por detección en batch (una vez por
+    proveedor intentado en el fallback) y 2-3x por sesión en stream, sin
+    ningún cache antes — pegaba a MySQL + Fernet en cada intento."""
+    cache_key = f"{_ACTIVE_KEYS_CACHE_PREFIX}{provider}"
+    try:
+        from app.cache.client_cache import get_redis
+        r = await get_redis()
+        cached = await r.get(cache_key)
+        if cached is not None:
+            return json.loads(cached)
+    except Exception:
+        pass
+
     out: list[dict] = []
 
     getter = _ENV_GETTERS.get(provider)
@@ -168,6 +216,13 @@ async def get_active_keys(provider: str) -> list[dict]:
         plain = decrypt_key(row["key_encrypted"])
         if plain:
             out.append({"id": KEY_ID_OFFSET + row["id"], "key": plain})
+
+    try:
+        from app.cache.client_cache import get_redis
+        r = await get_redis()
+        await r.setex(cache_key, settings.REDIS_CACHE_TTL, json.dumps(out))
+    except Exception:
+        pass
 
     return out
 

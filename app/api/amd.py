@@ -10,7 +10,6 @@ from app.api.deps import verify_client, verify_client_readonly
 from app.core.amd_engine import detect, transcribe_for_log
 from app.core.agi_template import TEMPLATE
 from app.db.logs import save_log
-from app.db.providers import get_active_providers
 
 _AGI_VERSION = hashlib.sha256(TEMPLATE.encode()).hexdigest()[:12]
 
@@ -18,6 +17,19 @@ log = logging.getLogger("voxidet.api")
 router = APIRouter()
 
 _MAX_BYTES = int(settings.AUDIO_MAX_SECONDS * 8000 * 2 + 512)
+
+
+def _log_task_exception(task: "asyncio.Task") -> None:
+    """Segunda red de seguridad para tasks de background (save_log, etc.) —
+    save_log() ya atrapa sus propios errores, pero esto cubre cualquier otra
+    excepción de la task completa (ej. en transcribe_for_log(), antes de
+    llegar a save_log) que si no quedaría solo como un "Task exception was
+    never retrieved" de asyncio que nadie mira."""
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc:
+        log.error("Tarea de background falló: %s", exc, exc_info=exc)
 
 # Llamadas en proceso ahora mismo (incrementa al entrar, decrementa al salir)
 active_calls: int = 0
@@ -55,11 +67,13 @@ async def amd_detect(
     global active_calls
     active_calls += 1
     try:
-        active_providers = await get_active_providers()
+        # active_providers no se resuelve acá — detect() lo hace por su cuenta
+        # solo si capa 1 no alcanza a decidir, para no atar el camino rápido
+        # (capa 1, sin red/DB) a una consulta que la mayoría de las llamadas
+        # no necesita.
         detection = await detect(
             audio_bytes,
             provider=client.get("provider", "groq"),
-            active_providers=active_providers,
             aggressive=client.get("amd_bias") == "aggressive",
         )
     finally:
@@ -107,11 +121,13 @@ async def amd_detect(
         # segundo plano solo para que quede en el log como registro/
         # auditoría, sin retrasar la respuesta que ya se le va a dar a
         # Asterisk. La decisión de AMD ya está tomada, esto no la cambia.
-        asyncio.create_task(_log_with_background_transcript(
-            audio_bytes, client.get("provider", "groq"), active_providers, _log_kwargs,
+        t = asyncio.create_task(_log_with_background_transcript(
+            audio_bytes, client.get("provider", "groq"), _log_kwargs,
         ))
+        t.add_done_callback(_log_task_exception)
     else:
-        asyncio.create_task(save_log(transcript=_transcript, **_log_kwargs))
+        t = asyncio.create_task(save_log(transcript=_transcript, **_log_kwargs))
+        t.add_done_callback(_log_task_exception)
 
     return {
         "status":     detection["result"],
@@ -120,8 +136,11 @@ async def amd_detect(
     }
 
 
-async def _log_with_background_transcript(audio_bytes, provider, active_providers, log_kwargs):
-    used_provider, transcript = await transcribe_for_log(audio_bytes, provider, active_providers)
+async def _log_with_background_transcript(audio_bytes, provider, log_kwargs):
+    # active_providers no se pasa — transcribe_for_log() lo resuelve por su
+    # cuenta (corre en una task de background, no bloquea la respuesta a
+    # Asterisk, así que el costo de la consulta no afecta la latencia real).
+    used_provider, transcript = await transcribe_for_log(audio_bytes, provider)
     if used_provider:
         log_kwargs["provider"] = used_provider
     transcript = transcript[:200] if transcript else "[silencio]"

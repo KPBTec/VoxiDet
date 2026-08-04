@@ -1,6 +1,10 @@
+import logging
+
 from sqlalchemy import text
 from app.db.engine import get_db
 from app.cache.client_cache import record_daily_usage
+
+log = logging.getLogger("voxidet.logs")
 
 
 async def ensure_log_provider_column() -> None:
@@ -129,31 +133,42 @@ async def save_log(
     param4: str = "",
     beep_detected: bool = False,
 ) -> None:
-    async with get_db() as db:
-        await db.execute(
-            text("""
-                INSERT INTO voxidet_logs
-                    (client_id, call_id, caller_id, result, layer_used, mode, provider,
-                     latency_ms, audio_secs, transcript, param1, param2, param3, param4, beep_detected)
-                VALUES
-                    (:cid, :call_id, :caller_id, :result, :layer, :mode, :provider,
-                     :lat, :secs, :transcript, :p1, :p2, :p3, :p4, :beep)
-            """),
-            {
-                "cid": client_id, "call_id": call_id, "caller_id": caller_id,
-                "result": result, "layer": layer, "mode": mode, "provider": provider or None,
-                "lat": latency_ms, "secs": audio_secs,
-                "transcript": (transcript or "")[:500] or None,
-                "p1": (param1 or "")[:200] or None,
-                "p2": (param2 or "")[:200] or None,
-                "p3": (param3 or "")[:100] or None,
-                "p4": (param4 or "")[:200] or None,
-                "beep": 1 if beep_detected else 0,
-            },
+    # save_log() se llama siempre vía asyncio.create_task(...) sin await ni
+    # callback (amd.py/stream.py) — sin este try/except, un fallo de MySQL acá
+    # desaparecía en silencio (solo un "Task exception was never retrieved"
+    # de asyncio, que nadie mira) y esa detección se perdía del log/contador
+    # de uso sin dejar ningún rastro operativo.
+    try:
+        async with get_db() as db:
+            await db.execute(
+                text("""
+                    INSERT INTO voxidet_logs
+                        (client_id, call_id, caller_id, result, layer_used, mode, provider,
+                         latency_ms, audio_secs, transcript, param1, param2, param3, param4, beep_detected)
+                    VALUES
+                        (:cid, :call_id, :caller_id, :result, :layer, :mode, :provider,
+                         :lat, :secs, :transcript, :p1, :p2, :p3, :p4, :beep)
+                """),
+                {
+                    "cid": client_id, "call_id": call_id, "caller_id": caller_id,
+                    "result": result, "layer": layer, "mode": mode, "provider": provider or None,
+                    "lat": latency_ms, "secs": audio_secs,
+                    "transcript": (transcript or "")[:500] or None,
+                    "p1": (param1 or "")[:200] or None,
+                    "p2": (param2 or "")[:200] or None,
+                    "p3": (param3 or "")[:100] or None,
+                    "p4": (param4 or "")[:200] or None,
+                    "beep": 1 if beep_detected else 0,
+                },
+            )
+        # Contador de uso diario: Redis (sin contención de locks), NO MySQL
+        # directo — ver client_cache.record_daily_usage y app/core/usage_sync.py
+        await record_daily_usage(client_id, result, layer)
+    except Exception:
+        log.exception(
+            "save_log() falló — se perdió el registro de esta detección (client_id=%s call_id=%s result=%s)",
+            client_id, call_id, result,
         )
-    # Contador de uso diario: Redis (sin contención de locks), NO MySQL
-    # directo — ver client_cache.record_daily_usage y app/core/usage_sync.py
-    await record_daily_usage(client_id, result, layer)
 
 
 async def get_logs_since(

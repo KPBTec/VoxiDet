@@ -144,9 +144,11 @@ async def layer2_deepgram(audio_bytes: bytes, aggressive: bool = False) -> tuple
 
         except httpx.TimeoutException:
             log.warning("L2 deepgram: timeout → UNKNOWN")
+            await _mark_provider_down("deepgram")
             return "UNKNOWN", ""
         except Exception as e:
             log.error("L2 deepgram error: %s", e)
+            await _mark_provider_down("deepgram")
             return "UNKNOWN", ""
     log.warning("L2 deepgram: las %d keys configuradas están al límite → UNKNOWN", len(key_entries))
     return "UNKNOWN", ""
@@ -229,12 +231,15 @@ async def layer2_groq(audio_bytes: bytes, aggressive: bool = False) -> tuple[str
                 log.warning("L2 groq: key[%d] 429 inesperado — contador Redis sincronizado", idx)
                 continue
             log.warning("L2 groq: %s — %s", resp.status_code, resp.text[:200])
+            await _mark_provider_down("groq")
             return "UNKNOWN", ""
         except httpx.TimeoutException:
             log.warning("L2 groq: timeout → UNKNOWN")
+            await _mark_provider_down("groq")
             return "UNKNOWN", ""
         except Exception as e:
             log.error("L2 groq error: %s", e)
+            await _mark_provider_down("groq")
             return "UNKNOWN", ""
     log.warning("L2 groq: las %d keys configuradas están al límite RPM → UNKNOWN", len(key_entries))
     return "UNKNOWN", ""
@@ -276,12 +281,15 @@ async def layer2_openai(audio_bytes: bytes, aggressive: bool = False) -> tuple[s
                 log.warning("L2 openai: key[%d] límite (429) — rotando", idx)
                 continue
             log.warning("L2 openai: %s — %s", resp.status_code, resp.text[:200])
+            await _mark_provider_down("openai")
             return "UNKNOWN", ""
         except httpx.TimeoutException:
             log.warning("L2 openai: timeout → UNKNOWN")
+            await _mark_provider_down("openai")
             return "UNKNOWN", ""
         except Exception as e:
             log.error("L2 openai error: %s", e)
+            await _mark_provider_down("openai")
             return "UNKNOWN", ""
     log.warning("L2 openai: las %d keys configuradas están al límite → UNKNOWN", len(key_entries))
     return "UNKNOWN", ""
@@ -323,12 +331,15 @@ async def layer2_together(audio_bytes: bytes, aggressive: bool = False) -> tuple
                 log.warning("L2 together: key[%d] límite (429) — rotando", idx)
                 continue
             log.warning("L2 together: %s — %s", resp.status_code, resp.text[:200])
+            await _mark_provider_down("together")
             return "UNKNOWN", ""
         except httpx.TimeoutException:
             log.warning("L2 together: timeout → UNKNOWN")
+            await _mark_provider_down("together")
             return "UNKNOWN", ""
         except Exception as e:
             log.error("L2 together error: %s", e)
+            await _mark_provider_down("together")
             return "UNKNOWN", ""
     log.warning("L2 together: las %d keys configuradas están al límite → UNKNOWN", len(key_entries))
     return "UNKNOWN", ""
@@ -370,12 +381,15 @@ async def layer2_fireworks(audio_bytes: bytes, aggressive: bool = False) -> tupl
                 log.warning("L2 fireworks: key[%d] límite (429) — rotando", idx)
                 continue
             log.warning("L2 fireworks: %s — %s", resp.status_code, resp.text[:200])
+            await _mark_provider_down("fireworks")
             return "UNKNOWN", ""
         except httpx.TimeoutException:
             log.warning("L2 fireworks: timeout → UNKNOWN")
+            await _mark_provider_down("fireworks")
             return "UNKNOWN", ""
         except Exception as e:
             log.error("L2 fireworks error: %s", e)
+            await _mark_provider_down("fireworks")
             return "UNKNOWN", ""
     log.warning("L2 fireworks: las %d keys configuradas están al límite → UNKNOWN", len(key_entries))
     return "UNKNOWN", ""
@@ -468,6 +482,38 @@ _FALLBACK_PRIORITY = ["vosk", "sherpa", "deepgram", "fireworks", "together", "gr
 # proveedor principal — nunca como fallback automático cuando falla el de
 # OTRO cliente, sin importar si están "activos" en el panel Proveedores.
 _NEVER_AUTO_FALLBACK = {"sherpa_large"}
+
+# Circuit breaker — sin esto, cada request que cae en fallback vuelve a pagar
+# el timeout completo (hasta 8s) de un proveedor que ya está caído, request
+# tras request, sin ninguna memoria entre llamadas. Redis (no memoria local)
+# porque el estado tiene que ser el mismo para los 11 workers de gunicorn —
+# un proveedor caído lo está para todos, no solo para el worker que lo notó.
+_CIRCUIT_TTL = 45  # segundos que un proveedor queda en cooldown tras un fallo real (timeout/excepción/5xx)
+
+
+async def _mark_provider_down(provider: str) -> None:
+    try:
+        from app.cache.client_cache import get_redis
+        r = await get_redis()
+        await r.set(f"amd:circuit:{provider}", "1", ex=_CIRCUIT_TTL)
+    except Exception:
+        pass  # Redis caído no debe romper la detección — solo se pierde el circuit breaker, no la detección en sí
+
+    from app.core.alerting import notify
+    await notify(f"proveedor_caido:{provider}", f"proveedor **{provider}** entró en cooldown por un fallo real (timeout/error) — se está saltando en el fallback por {_CIRCUIT_TTL}s")
+
+
+async def _get_down_providers(providers: list[str]) -> set[str]:
+    if not providers:
+        return set()
+    try:
+        from app.cache.client_cache import get_redis
+        r = await get_redis()
+        keys = [f"amd:circuit:{p}" for p in providers]
+        vals = await r.mget(keys)
+        return {p for p, v in zip(providers, vals) if v}
+    except Exception:
+        return set()
 
 
 def _by_fallback_priority(providers: list[str]) -> list[str]:
@@ -739,7 +785,23 @@ async def detect(
     used_provider  = ""
     if result is None:
         layer = 2
-        candidates = [provider] + _by_fallback_priority([p for p in (active_providers or []) if p != provider])
+        # Providers activos solo se resuelven acá — capa 1 (energía, sin red
+        # ni DB) ya devolvió None antes de este punto, así que recién ahora
+        # hace falta el dato. Antes se resolvía siempre por adelantado en el
+        # caller (app/api/amd.py), atando el ~70% de las llamadas que capa 1
+        # resuelve sola a una dependencia de MySQL que no necesitaban.
+        if active_providers is None:
+            from app.db.providers import get_active_providers
+            active_providers = await get_active_providers()
+        candidates = [provider] + _by_fallback_priority([p for p in active_providers if p != provider])
+        # Saltar proveedores marcados como caídos recientemente (circuit
+        # breaker, ver _mark_provider_down) — si TODOS están en cooldown, se
+        # prueba la lista completa igual (mejor un intento con timeout
+        # completo que garantizar UNKNOWN sin siquiera intentarlo).
+        down = await _get_down_providers(candidates)
+        if down:
+            filtered = [p for p in candidates if p not in down]
+            candidates = filtered or candidates
         for p in candidates:
             func = _LAYER2_PROVIDERS.get(p)
             if not func:
@@ -774,7 +836,10 @@ async def transcribe_for_log(
     proveedor del cliente primero, y si falla, otro proveedor activo.
     Devuelve (provider_usado, transcript) — nunca cambia la decisión de AMD.
     """
-    candidates = [provider] + _by_fallback_priority([p for p in (active_providers or []) if p != provider])
+    if active_providers is None:
+        from app.db.providers import get_active_providers
+        active_providers = await get_active_providers()
+    candidates = [provider] + _by_fallback_priority([p for p in active_providers if p != provider])
     for p in candidates:
         func = _LAYER2_PROVIDERS.get(p)
         if not func:

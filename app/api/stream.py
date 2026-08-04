@@ -28,6 +28,7 @@ from app.cache.client_cache import (
 )
 from app.db.providers import get_provider_model
 from app.db.provider_keys import get_active_keys
+from app.core.security import get_ip, is_blocked_ua, check_rate_limit
 from app.core.amd_engine import _classify_transcript
 from app.core.http_client import get_http_client
 from app.core.ip_utils import ip_allowed
@@ -40,6 +41,17 @@ from app.db.providers import get_vad_engine as _get_vad_engine
 
 log    = logging.getLogger("voxidet.stream")
 router = APIRouter()
+
+
+def _log_task_exception(task: asyncio.Task) -> None:
+    """Segunda red de seguridad para tasks de background (save_log, etc.) —
+    sin esto, un fallo ahí solo queda como un "Task exception was never
+    retrieved" de asyncio que nadie mira."""
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc:
+        log.error("Tarea de background falló: %s", exc, exc_info=exc)
 
 # Cache en memoria para evitar query DB/Redis en cada conexión WebSocket
 _cached_vad_engine: str | None = None
@@ -588,6 +600,21 @@ async def _stream_authenticate_and_setup(
 
 @router.websocket("/amd/stream")
 async def amd_stream(ws: WebSocket):
+    # SecurityMiddleware (app/core/security.py) hereda de BaseHTTPMiddleware,
+    # que Starlette nunca invoca para scope "websocket" — sin este chequeo acá,
+    # este endpoint quedaba sin bloqueo de UA ni rate limit de conexión, con
+    # solo la autenticación de _auth() (más abajo) como única barrera, que ni
+    # siquiera corre hasta después de aceptar el socket.
+    ip = get_ip(ws)
+    if is_blocked_ua(ws.headers.get("user-agent", "")):
+        log.warning("SECURITY_REJECT ip=%s reason=blocked_ua path=/amd/stream", ip)
+        await ws.close(code=1008)
+        return
+    exceeded, window = check_rate_limit(ip, "/amd/stream")
+    if exceeded:
+        await ws.close(code=1013)  # 1013 = "try again later"
+        return
+
     session_id = secrets.token_hex(4)
     await ws.accept()
     t0 = time.monotonic()
@@ -727,7 +754,7 @@ async def amd_stream(ws: WebSocket):
     else:
         _transcript = "[silencio]"
 
-    asyncio.create_task(save_log(
+    _t = asyncio.create_task(save_log(
         client_id  = client["id"],
         call_id    = call_id,
         caller_id  = caller_id,
@@ -743,3 +770,4 @@ async def amd_stream(ws: WebSocket):
         param4     = f"{campaign_id}|{list_id}" if campaign_id else list_id,
         beep_detected = detector.tone_detected(),
     ))
+    _t.add_done_callback(_log_task_exception)

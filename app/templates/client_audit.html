@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Historial — {{ client.name }} — VoxiDet{% endblock %}
+{% set active_page = 'clients' %}
+
+{% block content %}
+<div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
+  <a href="{{ admin_prefix }}/clients" class="btn btn-ghost btn-sm">← Volver</a>
+  <h2 style="margin:0;">Historial de <strong>{{ client.name }}</strong></h2>
+</div>
+
+<p class="muted" style="margin-bottom:1rem; font-size:.87rem;">
+  Últimos {{ entries|length }} cambios aplicados desde el panel a este cliente — quién, qué campo y
+  cuándo. No incluye el valor real de API keys/tokens rotados, solo que la acción ocurrió.
+</p>
+
+<div class="card" style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Admin</th>
+        <th>Campo</th>
+        <th>Antes</th>
+        <th>Después</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td class="readout" style="font-size:.8rem;">{{ e.created_at }}</td>
+        <td>{{ e.admin_user }}</td>
+        <td><code>{{ e.field_changed }}</code></td>
+        <td class="muted" style="font-size:.82rem;">{{ e.old_value or "—" }}</td>
+        <td style="font-size:.82rem;">{{ e.new_value or "—" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty">Sin cambios registrados todavía para este cliente.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

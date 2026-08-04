@@ -17,6 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 log = logging.getLogger("voxidet.security")
 
 RATE_LIMITS = {
+    "/amd/stream":    (30,  60),   # 30 conexiones nuevas/min por IP — antes del límite general de /amd
     "/amd":           (120, 60),   # 120 req/min por IP en endpoints AMD
     "/admin/":        (60,  60),   # 60 req/min en panel admin
 }
@@ -62,7 +63,7 @@ _counters: dict[str, TTLCache] = {
 }
 
 
-def _get_ip(request: Request) -> str:
+def get_ip(request: Request) -> str:
     cf = request.headers.get("CF-Connecting-IP")
     if cf:
         return cf.strip().split(",")[0].strip()
@@ -72,35 +73,52 @@ def _get_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def is_blocked_ua(user_agent: str) -> bool:
+    ua = (user_agent or "").lower()
+    return any(b in ua for b in BLOCKED_UAS)
+
+
+def check_rate_limit(ip: str, path: str) -> tuple[bool, int]:
+    """(excede_limite, ventana_en_segundos) para el primer prefijo de
+    RATE_LIMITS que matchee `path`. No se loguea como SECURITY_REJECT (no
+    alimenta fail2ban) — un dialer legítimo de alto volumen puede superar el
+    límite en tráfico normal, banearlo por esto sería un auto-DoS. Reusado
+    tanto por el middleware HTTP (dispatch) como por el WebSocket de stream,
+    que BaseHTTPMiddleware no puede proteger (ver amd_stream() en stream.py)."""
+    now = time.monotonic()
+    for prefix, (max_req, window) in RATE_LIMITS.items():
+        if path.startswith(prefix):
+            cache = _counters[prefix]
+            hits  = [t for t in cache.get(ip, ()) if now - t < window]
+            if len(hits) >= max_req:
+                return True, window
+            hits.append(now)
+            cache[ip] = hits   # reinserta → refresca el TTL de esta IP
+            return False, window
+    return False, 0
+
+
 class SecurityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         path = request.url.path
-        ua   = request.headers.get("user-agent", "").lower()
-        ip   = _get_ip(request)
+        ua   = request.headers.get("user-agent", "")
+        ip   = get_ip(request)
 
         # Bloquear scanners conocidos
-        if any(b in ua for b in BLOCKED_UAS):
+        if is_blocked_ua(ua):
             log.warning("SECURITY_REJECT ip=%s reason=blocked_ua path=%s", ip, path)
             return JSONResponse({"detail": "Forbidden"}, status_code=403)
 
-        # Rate limiting por prefijo
-        now = time.monotonic()
-        for prefix, (max_req, window) in RATE_LIMITS.items():
-            if path.startswith(prefix):
-                cache = _counters[prefix]
-                hits  = [t for t in cache.get(ip, ()) if now - t < window]
-                if len(hits) >= max_req:
-                    # No se loguea como SECURITY_REJECT (no alimenta fail2ban): un
-                    # dialer legítimo de alto volumen puede superar el límite en
-                    # tráfico normal — banearlo por esto sería un auto-DoS.
-                    return JSONResponse(
-                        {"detail": "Rate limit — intenta mas tarde"},
-                        status_code=429,
-                        headers={"Retry-After": str(window)},
-                    )
-                hits.append(now)
-                cache[ip] = hits   # reinserta → refresca el TTL de esta IP
-                break
+        # Rate limiting por prefijo — BaseHTTPMiddleware solo procesa scope
+        # "http", así que esto nunca corre para el WebSocket de /amd/stream
+        # (protegido aparte, directo en amd_stream(), ver check_rate_limit()).
+        exceeded, window = check_rate_limit(ip, path)
+        if exceeded:
+            return JSONResponse(
+                {"detail": "Rate limit — intenta mas tarde"},
+                status_code=429,
+                headers={"Retry-After": str(window)},
+            )
 
         response = await call_next(request)
 

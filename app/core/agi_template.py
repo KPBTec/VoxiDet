@@ -72,7 +72,12 @@ def _self_update():
     quede colgado sin llegar nunca a setear AMDSTATUS (visto en producción:
     "AMD:  capa= ms" en blanco, ni un solo log de esta llamada).'''
     path = os.path.abspath(__file__)
-    tmp  = path + ".tmp"
+    # Nombre único por proceso — __file__ es el mismo para todas las llamadas
+    # AGI concurrentes en el mismo nodo Asterisk, así que un ".tmp" fijo
+    # compartido entre procesos puede hacer que uno pise el archivo temporal
+    # de otro a mitad de escritura (visto como riesgo real con 150+ agentes,
+    # todos detectando la misma versión nueva al mismo tiempo tras un deploy).
+    tmp = f"{path}.{os.getpid()}.{secrets.token_hex(4)}.tmp"
     try:
         req = Request(f"{_SERVER}/amd/update", headers={"X-API-Key": _API_KEY})
         with urlopen(req, timeout=8) as r:

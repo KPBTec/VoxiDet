@@ -62,6 +62,13 @@ class Settings(BaseSettings):
     LOG_LEVEL: str  = "info"
     PUBLIC_URL: str = "http://localhost:8000"
 
+    # Alertas proactivas (app/core/alerting.py) — opt-in, sin esto configurado
+    # notify() es un no-op (mismo patrón que INSTALL_SHERPA_LARGE: no aparece
+    # ni se usa por accidente si nadie lo configuró a propósito). Acepta
+    # cualquier webhook que reciba POST {"text": "..."} — Slack incoming
+    # webhook, n8n, o un endpoint propio.
+    ALERT_WEBHOOK_URL: str = ""
+
     # Detección de tono de beep de buzón (experimental, solo logging por ahora
     # — ver app/core/tone_detector.py). La frecuencia real depende del
     # operador/central telefónica y NO está calibrada con datos de producción

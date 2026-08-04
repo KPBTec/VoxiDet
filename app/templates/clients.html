@@ -148,6 +148,9 @@
                 data-ips="{{ (c.allowed_ips or '') | e }}"
                 data-active="{{ c.active | tojson }}"
                 data-url="{{ (public_url ~ '/install/' ~ c.install_token) | e }}">Editar</button>
+        <a href="{{ admin_prefix }}/clients/{{ c.id }}/audit"
+           class="btn btn-sm btn-ghost" title="Historial de cambios de este cliente"
+           style="font-size:.72rem;">Historial</a>
         <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/amd-mode" style="display:inline;">
           <select name="mode" onchange="this.form.submit()"
                   title="Batch: graba 2.5s y envía WAV (más estable) · Stream: EAGI en tiempo real (alta latencia bajo carga)"

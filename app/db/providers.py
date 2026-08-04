@@ -1,6 +1,9 @@
 import json
 from sqlalchemy import text
+from app.config import settings
 from app.db.engine import get_db
+
+_ACTIVE_PROVIDERS_CACHE_KEY = "amd:active_providers"
 
 _DEFAULTS: dict[str, str] = {
     "groq":         "whisper-large-v3-turbo",
@@ -66,12 +69,31 @@ async def get_all_provider_settings() -> list[dict]:
 
 
 async def get_active_providers() -> list[str]:
-    """Proveedores activos para mostrar en el selector de clientes."""
+    """Proveedores activos para mostrar en el selector de clientes y para el
+    fallback real de detect() (amd_engine.py). Cacheado en Redis — antes se
+    consultaba MySQL en cada request de /amd, incluso cuando capa 1 (energía,
+    sin red) resolvía sola y ni siquiera hacía falta este dato."""
+    try:
+        r = await _get_redis()
+        cached = await r.get(_ACTIVE_PROVIDERS_CACHE_KEY)
+        if cached is not None:
+            return json.loads(cached)
+    except Exception:
+        pass
+
     async with get_db() as db:
         result = await db.execute(
             text("SELECT provider FROM provider_settings WHERE active=1 AND provider != '__vad_engine__'")
         )
-        return [r[0] for r in result.fetchall()]
+        providers = [r[0] for r in result.fetchall()]
+
+    try:
+        r = await _get_redis()
+        await r.setex(_ACTIVE_PROVIDERS_CACHE_KEY, settings.REDIS_CACHE_TTL, json.dumps(providers))
+    except Exception:
+        pass
+
+    return providers
 
 
 async def toggle_provider_active(provider: str) -> bool:
@@ -87,6 +109,11 @@ async def toggle_provider_active(provider: str) -> bool:
             text("UPDATE provider_settings SET active=:v WHERE provider=:p"),
             {"v": new_val, "p": provider},
         )
+    try:
+        r = await _get_redis()
+        await r.delete(_ACTIVE_PROVIDERS_CACHE_KEY)
+    except Exception:
+        pass
     return bool(new_val)
 
 

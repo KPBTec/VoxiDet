@@ -9,6 +9,24 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.23.0 — 2026-08-04
+
+- Nuevo: historial de cambios por cliente — cada modificación (límite, IPs, proveedor, activar/desactivar,
+  rotar credenciales) queda registrada con quién y cuándo la hizo, visible desde la ficha del cliente.
+- Mejorado: cuando un proveedor de transcripción falla, el sistema ahora lo detecta y evita reintentarlo
+  durante unos segundos, en vez de esperar el tiempo completo de espera en cada llamada — respuestas más
+  rápidas durante una falla temporal de un proveedor.
+- Mejorado: el canal de audio/video en vivo (streaming) ahora tiene las mismas protecciones de seguridad
+  que el resto del sistema contra tráfico malicioso o abusivo.
+- Mejorado: la lista de proveedores y credenciales activos ahora responde más rápido al no consultar la
+  base de datos en cada detección.
+- Nuevo: soporte técnico puede configurar alertas automáticas (por webhook) que se activan si un proveedor
+  falla repetidamente o un cliente supera su límite diario de forma insistente.
+- Corregido: un error raro de sincronización en la actualización automática del módulo de telefonía
+  (Asterisk) cuando había varias llamadas simultáneas en el mismo servidor.
+
+---
+
 ## v1.22.5 — 2026-08-03
 
 - Mejorado: varios colores de estado (activo/error/advertencia) en distintas páginas del panel que habían quedado del diseño anterior — ahora responden correctamente a los 4 temas visuales.

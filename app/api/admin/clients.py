@@ -20,12 +20,27 @@ from app.db.clients import (
     set_amd_bias,
 )
 from app.cache.client_cache import invalidate_api_key
+from app.db.audit import log_audit
 
 router = APIRouter()
 
 
 def _gen() -> str:
     return secrets.token_urlsafe(36)
+
+
+async def _get_client(client_id: int) -> dict | None:
+    """Registro actual de un cliente puntual — reusa get_all_clients_with_stats()
+    (ya usado igual en client_keywords_page más abajo). No es la ruta caliente
+    de detección (es acción de panel admin, baja frecuencia), así que traer
+    la lista completa para filtrar un id es aceptable acá."""
+    clients = await get_all_clients_with_stats()
+    return next((c for c in clients if c["id"] == client_id), None)
+
+
+def _admin_user(request: Request) -> str:
+    sess = get_session(request)
+    return sess.get("user", "?") if sess else "?"
 
 
 @router.get("/clients", response_class=HTMLResponse)
@@ -70,7 +85,10 @@ async def update_limit(
 ):
     if not get_session(request):
         return login_redirect(request)
+    old = await _get_client(client_id)
     await update_client_limit(client_id, limit)
+    if old:
+        await log_audit(_admin_user(request), client_id, "daily_limit", old["daily_limit"], limit)
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
 
 
@@ -82,7 +100,10 @@ async def update_name(
 ):
     if not get_session(request):
         return login_redirect(request)
+    old = await _get_client(client_id)
     await update_client_name(client_id, name)
+    if old:
+        await log_audit(_admin_user(request), client_id, "name", old["name"], name)
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
 
 
@@ -94,7 +115,10 @@ async def update_provider(
 ):
     if not get_session(request):
         return login_redirect(request)
+    old = await _get_client(client_id)
     await update_client_provider(client_id, provider)
+    if old:
+        await log_audit(_admin_user(request), client_id, "provider", old["provider"], provider)
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
 
 
@@ -102,7 +126,8 @@ async def update_provider(
 async def toggle_active(request: Request, client_id: int):
     if not get_session(request):
         return login_redirect(request)
-    await toggle_client_active(client_id)
+    new_state = await toggle_client_active(client_id)
+    await log_audit(_admin_user(request), client_id, "active", not new_state, new_state)
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
 
 
@@ -141,7 +166,10 @@ async def update_ips(
 ):
     if not get_session(request):
         return login_redirect(request)
+    old = await _get_client(client_id)
     await update_client_ips(client_id, ips.strip())
+    if old:
+        await log_audit(_admin_user(request), client_id, "allowed_ips", old["allowed_ips"], ips.strip())
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
 
 
@@ -152,6 +180,10 @@ async def rotate_key(request: Request, client_id: int):
     old_key = await rotate_api_key(client_id, _gen())
     if old_key:
         await invalidate_api_key(old_key)
+    # Nunca se guarda el valor real de la key en el audit log (sería un
+    # secreto legible por cualquier otro admin) — solo se registra que la
+    # acción ocurrió.
+    await log_audit(_admin_user(request), client_id, "api_key", "***", "rotada")
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients?rotated=1", status_code=302)
 
 
@@ -160,6 +192,7 @@ async def rotate_token(request: Request, client_id: int):
     if not get_session(request):
         return login_redirect(request)
     await rotate_install_token(client_id, _gen())
+    await log_audit(_admin_user(request), client_id, "install_token", "***", "rotado")
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients?rotated=1", status_code=302)
 
 
@@ -167,8 +200,28 @@ async def rotate_token(request: Request, client_id: int):
 async def delete_client_action(request: Request, client_id: int):
     if not get_session(request):
         return login_redirect(request)
+    old = await _get_client(client_id)
     await delete_client(client_id)
+    if old:
+        await log_audit(_admin_user(request), client_id, "cliente", old["name"], "eliminado")
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients?deleted=1", status_code=302)
+
+
+@router.get("/clients/{client_id}/audit", response_class=HTMLResponse)
+async def client_audit_page(request: Request, client_id: int):
+    if not get_session(request):
+        return login_redirect(request)
+    client = await _get_client(client_id)
+    if not client:
+        return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
+    from app.db.audit import get_client_audit_log
+    entries = await get_client_audit_log(client_id)
+    return templates.TemplateResponse(request, "client_audit.html", {
+        "request":      request,
+        "client":       client,
+        "entries":      entries,
+        "admin_prefix": settings.ADMIN_PREFIX,
+    })
 
 
 # ── Keywords por cliente ───────────────────────────────────────────────────────
