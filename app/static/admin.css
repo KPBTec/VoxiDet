@@ -721,6 +721,19 @@ code {
 /* ── Motivo "instrumento de rack" — reservado a 2-3 superficies de marca,
    no a toda la UI (ver PATTERN_VOXI_DESIGN.md) ── */
 .riveted { position: relative; }
+/* BUG REAL (v1.26.8): `.sidebar` necesita position:fixed para quedar pinneado
+   mientras el contenido scrollea — pero `.riveted` (misma especificidad,
+   declarado después en el archivo) pisaba ese `position` y lo dejaba en
+   `relative`. Con `body{display:flex}`, un sidebar `relative` vuelve a
+   participar del flujo flex normal — así que `body` le reservaba sus propios
+   224px COMO FLEX ITEM, y ADEMÁS `.main-content{margin-left:224px}` sumaba
+   otros 224px más, duplicando el hueco a 448px reales entre el borde del
+   sidebar y el contenido. Confirmado con Playwright headless contra el
+   template real: `getComputedStyle(sidebar).position` daba "relative", no
+   "fixed", y `.main-content` arrancaba en x=448 en vez de x=224. Selector
+   compuesto para que esto no dependa nunca más del orden de las reglas en el
+   archivo. */
+.sidebar.riveted { position: fixed; }
 .riveted::before, .riveted::after {
   content: ""; position: absolute; width: 5px; height: 5px; border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, var(--border2), var(--bg2));

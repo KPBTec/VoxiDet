@@ -9,6 +9,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.26.8 — 2026-08-04
+
+- Corregido de raíz: el espacio excesivo entre el menú lateral y el contenido — un conflicto entre dos
+  estilos internos hacía que el menú reservara el doble del espacio necesario. Ahora el contenido
+  arranca justo al lado del menú, igual que en el resto de las plataformas KPBTec.
+
+---
+
 ## v1.26.7 — 2026-08-04
 
 - Corregido: el botón "Copiar comando AGI" ahora usa el dominio público configurado, en vez de la
