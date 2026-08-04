@@ -7,6 +7,11 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.26.9 — 2026-08-04
+
+- Corregido: en pantallas anchas quedaba una franja vacía sin usar a la derecha del contenido — ahora
+  el contenido aprovecha todo el ancho disponible, igual que el resto de las plataformas KPBTec.
+
 ---
 
 ## v1.26.8 — 2026-08-04
