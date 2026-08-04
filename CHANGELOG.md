@@ -7,6 +7,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.26.12 — 2026-08-04
+
+- Corregido: el modo de detección en tiempo real (streaming) podía fallar por completo cuando un
+  proveedor de transcripción no respondía a tiempo — un mensaje interno con acentos rompía el registro
+  del error. Esta actualización se aplica sola en cada AGI instalado, sin necesidad de reinstalar.
+
+---
+
 ## v1.26.11 — 2026-08-04
 
 - Corregido: llamadas reales rechazadas ("Forbidden") cuando el servidor usa Cloudflare — el programa

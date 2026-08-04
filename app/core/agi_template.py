@@ -40,6 +40,14 @@ def _send(cmd):
     return sys.stdin.readline().strip()
 
 def _set(name, value): _send(f"SET VARIABLE {name} {value}")
+# _log()/_send() SOLO ASCII — Asterisk lanza el AGI sin LANG/PYTHONIOENCODING
+# seteado en la mayoria de las instalaciones, asi que sys.stdout cae al
+# codec 'ascii' por default. Un guion largo "-" o una vocal acentuada en el
+# mensaje tira UnicodeEncodeError acá mismo (visto en producción, modo
+# stream: "conexión ... — fallback" con em-dash y tilde rompía TODAS las
+# llamadas que pasaban por ese log, no solo el mensaje en sí — el except que
+# lo atajaba intentaba loguear el error y volvía a fallar con el mismo
+# problema, sin atraparlo la segunda vez).
 def _log(msg):         _send(f'VERBOSE "{msg}" 1')
 
 def _get_var(name):
@@ -119,7 +127,7 @@ def _run_batch(uid, phone, lead_id, campaign_id, list_id):
         _record(tmp, "wav", "#", 2500, 1500)
 
         if not os.path.exists(wav):
-            _log("AMD-IA batch: no wav — UNKNOWN")
+            _log("AMD-IA batch: no wav - UNKNOWN")
             _set("AMDSTATUS", "UNKNOWN")
             return
 
@@ -243,14 +251,14 @@ def _run_stream(uid, phone, lead_id, campaign_id, list_id):
     try:
         sock = socket.create_connection((host, port), timeout=5)
     except Exception as e:
-        _log(f"AMD-IA stream: conexión fallida ({e}) — fallback batch")
+        _log(f"AMD-IA stream: conexion fallida ({e}) - fallback batch")
         return _run_batch(uid, phone, lead_id, campaign_id, list_id)
 
     result = None
     try:
         if not _ws_handshake(sock, f"{host}:{port}", "/amd/stream",
                              uid, phone, lead_id, campaign_id, list_id):
-            _log("AMD-IA stream: WS handshake falló — fallback batch")
+            _log("AMD-IA stream: WS handshake fallo - fallback batch")
             sock.close()
             return _run_batch(uid, phone, lead_id, campaign_id, list_id)
 
@@ -273,7 +281,7 @@ def _run_stream(uid, phone, lead_id, campaign_id, list_id):
         ack_raw = _ws_recv(sock)
         ack = json.loads(ack_raw) if ack_raw else {}
         if not ack.get("ok"):
-            _log(f"AMD-IA stream: auth rechazada ({ack.get('error', 'sin respuesta')}) — fallback batch")
+            _log(f"AMD-IA stream: auth rechazada ({ack.get('error', 'sin respuesta')}) - fallback batch")
             sock.close()
             return _run_batch(uid, phone, lead_id, campaign_id, list_id)
 
@@ -322,7 +330,7 @@ def _run_stream(uid, phone, lead_id, campaign_id, list_id):
         _set("AMDLAYER",  str(layer))
         _set("AMDMS",     str(ms))
     else:
-        _log("AMD-IA stream: sin respuesta — ERROR")
+        _log("AMD-IA stream: sin respuesta - ERROR")
         _set("AMDSTATUS", "ERROR")
 
 
@@ -348,7 +356,7 @@ def main():
     mode, need_update = _check_server()
 
     if need_update:
-        _log(f"AMD-IA: nueva version disponible — descargando para la próxima llamada")
+        _log(f"AMD-IA: nueva version disponible - descargando para la proxima llamada")
         _self_update()
         # _self_update() nunca reinicia este proceso — la llamada actual
         # sigue con el código ya cargado en memoria (viejo o nuevo, según si
