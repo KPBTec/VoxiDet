@@ -141,20 +141,24 @@ async def get_client_by_install_token(token: str) -> dict | None:
         return dict(row) if row else None
 
 
-async def get_all_clients_with_stats() -> list[dict]:
+async def get_all_clients_with_stats(site_id: int | None = None) -> list[dict]:
     async with get_db() as db:
         result = await db.execute(text("""
             SELECT c.id, c.name, c.active, c.daily_limit, c.allowed_ips,
                    c.provider, c.keywords_mode, c.amd_mode, c.amd_bias, c.install_token, c.created_at,
+                   c.site_id, s.name AS site_name,
                    COALESCE(u.total_calls, 0)     AS today_calls,
                    COALESCE(u.human_count, 0)     AS today_human,
                    COALESCE(u.voicemail_count, 0) AS today_voicemail
             FROM clients c
             LEFT JOIN daily_usage u ON u.client_id = c.id AND u.date = CURDATE()
+            LEFT JOIN sites s ON s.id = c.site_id
             ORDER BY c.id
         """))
-        rows = result.mappings().all()
-    return [dict(r) for r in rows]
+        rows = [dict(r) for r in result.mappings().all()]
+    if site_id is not None:
+        rows = [r for r in rows if r["site_id"] == site_id]
+    return rows
 
 
 async def count_active_clients() -> int:

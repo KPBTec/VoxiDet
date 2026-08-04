@@ -9,6 +9,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.25.0 — 2026-08-04
+
+- Nuevo: soporte para agrupar clientes por sede/sucursal. Se puede crear y administrar sedes desde el
+  nuevo menú "Sedes", asignar una sede a cada cliente desde Clientes, y filtrar Reportes y Detecciones
+  por sede — es totalmente opcional, los clientes existentes no se ven afectados.
+
+---
+
 ## v1.24.0 — 2026-08-04
 
 - Mejorado: mayor resiliencia en la transcripción de audio — si una credencial de un proveedor falla,

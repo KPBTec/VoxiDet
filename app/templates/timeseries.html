@@ -43,6 +43,16 @@ canvas { max-height:280px; }
     <option value="{{ c.id }}">{{ c.name }}</option>
     {% endfor %}
   </select>
+
+  {% if sites %}
+  <span style="margin-left:.5rem;">Sede:</span>
+  <select id="site-sel" class="input" style="max-width:160px;font-size:.82rem;" onchange="loadData()">
+    <option value="">Todas</option>
+    {% for s in sites %}
+    <option value="{{ s.id }}">{{ s.name }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
 </div>
 
 <div class="chart-wrap">
@@ -101,6 +111,8 @@ function updateChart(chart, data, datasets_key) {
 
 async function loadData() {
   const cid = document.getElementById("client-sel").value;
+  const siteSel = document.getElementById("site-sel");
+  const sid = siteSel ? siteSel.value : "";
   let url = PREFIX + "/timeseries/data?";
 
   if (_mode === "live") {
@@ -111,6 +123,7 @@ async function loadData() {
     url += `date=${d}`;
   }
   if (cid) url += `&client_id=${cid}`;
+  if (sid) url += `&site_id=${sid}`;
 
   try {
     const r = await fetch(url);

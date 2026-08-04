@@ -48,6 +48,10 @@ ICONS: dict[str, str] = {
         '<polyline points="8 9 5 12 8 15"/><polyline points="16 9 19 12 16 15"/>'
         '<line x1="13" y1="6" x2="11" y2="18"/>'
     ),
+    "sites": (
+        '<path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/>'
+        '<circle cx="12" cy="10" r="3"/>'
+    ),
 }
 
 # Ítems pinneados sobre los grupos (sin acordeón, siempre visibles) — mismo
@@ -61,6 +65,7 @@ NAV_GROUPS: list[dict] = [
         "label": "Operación",
         "items": [
             {"key": "clients", "href": "/clients", "label": "Clientes", "icon": "clients"},
+            {"key": "sites",   "href": "/sites",   "label": "Sedes",    "icon": "sites"},
             {"key": "logs",    "href": "/logs",    "label": "Logs en vivo", "icon": "logs"},
         ],
     },

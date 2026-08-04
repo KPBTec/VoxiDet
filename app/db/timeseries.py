@@ -26,6 +26,22 @@ def _hour_labels() -> list[str]:
     return [f"{h:02d}:00" for h in range(24)]
 
 
+def _client_site_cond(client_id: Optional[int], site_id: Optional[int]) -> tuple[str, dict]:
+    """Condición opcional por cliente Y/O sede — sede filtra sobre `c.site_id`,
+    requiere que la query ya haga `JOIN clients c ON c.id = l.client_id`. No se
+    excluyen entre sí (agregan sobre el filtro por cliente que ya existía, no
+    lo reemplazan) — filtrar por sede Y cliente a la vez no tiene mucho sentido
+    práctico hoy, pero no hay razón para prohibirlo a nivel query."""
+    cond, params = "", {}
+    if client_id:
+        cond += " AND l.client_id = :cid"
+        params["cid"] = client_id
+    if site_id:
+        cond += " AND c.site_id = :sid"
+        params["sid"] = site_id
+    return cond, params
+
+
 def _build_series_by_key(rows, label_key, group_key, count_key, labels, color_map=None) -> list[dict]:
     groups: dict = {}
     for r in rows:
@@ -45,9 +61,9 @@ def _build_series_by_key(rows, label_key, group_key, count_key, labels, color_ma
     return series
 
 
-async def query_timeseries_live(hours: int, client_id: Optional[int] = None) -> dict:
+async def query_timeseries_live(hours: int, client_id: Optional[int] = None, site_id: Optional[int] = None) -> dict:
     """Detecciones por minuto (últimas N horas) desde voxidet_logs."""
-    cond = "AND l.client_id = :cid" if client_id else ""
+    cond, cond_params = _client_site_cond(client_id, site_id)
     sql = f"""
         SELECT
             ANY_VALUE(DATE_FORMAT(l.created_at, '%H:%i')) AS lbl,
@@ -60,9 +76,7 @@ async def query_timeseries_live(hours: int, client_id: Optional[int] = None) -> 
         GROUP BY DATE_FORMAT(l.created_at, '%Y-%m-%d %H:%i'), l.client_id, l.result
         ORDER BY MIN(l.created_at) ASC
     """
-    params: dict = {"hours": hours}
-    if client_id:
-        params["cid"] = client_id
+    params: dict = {"hours": hours, **cond_params}
 
     async with get_db() as db:
         r = await db.execute(text(sql), params)
@@ -76,9 +90,9 @@ async def query_timeseries_live(hours: int, client_id: Optional[int] = None) -> 
     }
 
 
-async def query_timeseries_day(day: date_type, client_id: Optional[int] = None) -> dict:
+async def query_timeseries_day(day: date_type, client_id: Optional[int] = None, site_id: Optional[int] = None) -> dict:
     """Detecciones por hora para un día completo desde voxidet_logs."""
-    cond = "AND l.client_id = :cid" if client_id else ""
+    cond, cond_params = _client_site_cond(client_id, site_id)
     sql = f"""
         SELECT
             ANY_VALUE(DATE_FORMAT(l.created_at, '%H:00')) AS lbl,
@@ -91,9 +105,7 @@ async def query_timeseries_day(day: date_type, client_id: Optional[int] = None) 
         GROUP BY HOUR(l.created_at), l.client_id, l.result
         ORDER BY HOUR(l.created_at) ASC
     """
-    params: dict = {"day": day.isoformat()}
-    if client_id:
-        params["cid"] = client_id
+    params: dict = {"day": day.isoformat(), **cond_params}
 
     async with get_db() as db:
         r = await db.execute(text(sql), params)
@@ -107,9 +119,9 @@ async def query_timeseries_day(day: date_type, client_id: Optional[int] = None) 
     }
 
 
-async def query_quality(day: str, client_id: Optional[int] = None) -> dict:
+async def query_quality(day: str, client_id: Optional[int] = None, site_id: Optional[int] = None) -> dict:
     """Calidad de detección por hora: totales, %HUMAN/VOICEMAIL/UNKNOWN, latencia promedio."""
-    cond = "AND l.client_id = :cid" if client_id else ""
+    cond, cond_params = _client_site_cond(client_id, site_id)
     sql = f"""
         SELECT
             HOUR(l.created_at)                          AS h,
@@ -127,9 +139,7 @@ async def query_quality(day: str, client_id: Optional[int] = None) -> dict:
         GROUP BY HOUR(l.created_at), l.client_id
         ORDER BY h DESC
     """
-    params: dict = {"day": day}
-    if client_id:
-        params["cid"] = client_id
+    params: dict = {"day": day, **cond_params}
 
     def _pct(num, den):
         return round(num / den * 100, 1) if den else 0.0
@@ -194,9 +204,9 @@ async def query_quality(day: str, client_id: Optional[int] = None) -> dict:
     return {"rows": rows, "totals": total_list}
 
 
-async def query_report_day(day: str, client_id: Optional[int] = None) -> list[dict]:
+async def query_report_day(day: str, client_id: Optional[int] = None, site_id: Optional[int] = None) -> list[dict]:
     """Resumen del día por cliente: total, HUMAN/VM/UNK, avg latencia, audio."""
-    cond = "AND l.client_id = :cid" if client_id else ""
+    cond, cond_params = _client_site_cond(client_id, site_id)
     sql = f"""
         SELECT
             c.name                          AS client_name,
@@ -213,9 +223,7 @@ async def query_report_day(day: str, client_id: Optional[int] = None) -> list[di
         GROUP BY l.client_id
         ORDER BY total DESC
     """
-    params: dict = {"day": day}
-    if client_id:
-        params["cid"] = client_id
+    params: dict = {"day": day, **cond_params}
 
     def _pct(num, den):
         return round(num / den * 100, 1) if den else 0.0
@@ -248,9 +256,12 @@ async def query_report_day(day: str, client_id: Optional[int] = None) -> list[di
     return out
 
 
-async def query_report_month(month: str, client_id: Optional[int] = None) -> list[dict]:
+async def query_report_month(month: str, client_id: Optional[int] = None, site_id: Optional[int] = None) -> list[dict]:
     """Resumen del mes agrupado por día."""
-    cond = "AND l.client_id = :cid" if client_id else ""
+    cond, cond_params = _client_site_cond(client_id, site_id)
+    # El JOIN con clients solo hace falta para poder filtrar por c.site_id —
+    # se agrega siempre (es barato, l.client_id ya tiene índice) en vez de
+    # armar dos variantes de la query según haya o no filtro de sede.
     sql = f"""
         SELECT
             DATE(l.created_at)              AS day,
@@ -260,15 +271,14 @@ async def query_report_month(month: str, client_id: Optional[int] = None) -> lis
             SUM(l.result = 'UNKNOWN')       AS unknown_c,
             ROUND(AVG(l.latency_ms), 0)     AS avg_latency
         FROM voxidet_logs l
+        JOIN clients c ON c.id = l.client_id
         WHERE l.created_at >= STR_TO_DATE(CONCAT(:month, '-01'), '%Y-%m-%d')
           AND l.created_at <  STR_TO_DATE(CONCAT(:month, '-01'), '%Y-%m-%d') + INTERVAL 1 MONTH
           {cond}
         GROUP BY DATE(l.created_at)
         ORDER BY day DESC
     """
-    params: dict = {"month": month}
-    if client_id:
-        params["cid"] = client_id
+    params: dict = {"month": month, **cond_params}
 
     def _pct(num, den):
         return round(num / den * 100, 1) if den else 0.0
@@ -298,12 +308,12 @@ async def query_report_month(month: str, client_id: Optional[int] = None) -> lis
     return out
 
 
-async def query_report_month_by_client(month: str, client_id: Optional[int] = None) -> list[dict]:
+async def query_report_month_by_client(month: str, client_id: Optional[int] = None, site_id: Optional[int] = None) -> list[dict]:
     """Resumen del mes agrupado por día Y cliente (una fila por combinación) —
     a diferencia de query_report_month, que agrega todos los clientes juntos
     por día. Solo tiene sentido mostrarla cuando no hay un cliente puntual
     filtrado (si ya filtraste a un cliente, query_report_month da lo mismo)."""
-    cond = "AND l.client_id = :cid" if client_id else ""
+    cond, cond_params = _client_site_cond(client_id, site_id)
     sql = f"""
         SELECT
             DATE(l.created_at)              AS day,
@@ -320,9 +330,7 @@ async def query_report_month_by_client(month: str, client_id: Optional[int] = No
         GROUP BY DATE(l.created_at), l.client_id
         ORDER BY day DESC, total DESC
     """
-    params: dict = {"month": month}
-    if client_id:
-        params["cid"] = client_id
+    params: dict = {"month": month, **cond_params}
 
     def _pct(num, den):
         return round(num / den * 100, 1) if den else 0.0

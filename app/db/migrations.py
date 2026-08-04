@@ -50,6 +50,7 @@ from app.db.client_keywords import ensure_client_keywords_table
 from app.db.provider_stats import ensure_provider_stats_table
 from app.db.settings import ensure_app_settings_table
 from app.db.audit import ensure_audit_log_table
+from app.db.sites import ensure_sites_table
 
 log = logging.getLogger("voxidet.migrations")
 
@@ -83,6 +84,7 @@ MIGRATIONS = [
     ("1.16.0", ensure_provider_keys_table),
     ("1.22.0", ensure_app_settings_table),
     ("1.23.0", ensure_audit_log_table),
+    ("1.25.0", ensure_sites_table),
 ]
 
 

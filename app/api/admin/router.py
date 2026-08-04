@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse
 from app.api.deps import require_admin
 from app.api.admin import (
     auth, clients, logs, keywords, providers, firewall, system, system_logs,
-    timeseries, reports, users, dashboard,
+    timeseries, reports, users, dashboard, sites,
 )
 from app.config import settings
 
@@ -14,6 +14,7 @@ router = APIRouter()
 router.include_router(auth.router)
 router.include_router(dashboard.router)
 router.include_router(clients.router)
+router.include_router(sites.router)
 router.include_router(logs.router)
 router.include_router(keywords.router)
 router.include_router(providers.router)

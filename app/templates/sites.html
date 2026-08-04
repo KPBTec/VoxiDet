@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Sedes — VoxiDet{% endblock %}
+{% set active_page = 'sites' %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Sedes</h1>
+    <p class="page-subtitle">Agrupa clientes por ubicación/sucursal — opcional, un cliente sin sede sigue funcionando igual.</p>
+  </div>
+</div>
+
+{% if request.query_params.get('created') %}
+<div class="alert alert-success">Sede creada.</div>
+{% elif request.query_params.get('saved') %}
+<div class="alert alert-success">Sede renombrada.</div>
+{% elif request.query_params.get('deleted') %}
+<div class="alert alert-success">Sede eliminada — sus clientes quedaron sin sede asignada.</div>
+{% endif %}
+
+{# Formulario nueva sede #}
+<div class="card" style="margin-bottom:1.5rem;">
+  <h3 style="margin-bottom:1rem; font-size:.95rem; color:var(--text);">Nueva sede</h3>
+  <form method="post" action="{{ admin_prefix }}/sites/create" style="display:flex; gap:.75rem; align-items:flex-end;">
+    <div style="display:flex; flex-direction:column; gap:.3rem;">
+      <label style="font-size:.75rem; color:var(--muted);">Nombre</label>
+      <input type="text" name="name" required placeholder="Ej: Lima Centro"
+             style="padding:.5rem .75rem; background:var(--surface); border:1px solid var(--border);
+                    border-radius:6px; color:var(--text); font-size:.85rem; width:220px;">
+    </div>
+    <button type="submit" class="btn btn-primary">Crear</button>
+  </form>
+</div>
+
+<div class="card" style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Clientes</th>
+        <th>Creada</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for s in sites %}
+    <tr>
+      <td>
+        <form method="post" action="{{ admin_prefix }}/sites/{{ s.id }}/rename" style="display:flex; gap:.4rem;">
+          <input type="text" name="name" value="{{ s.name }}" required
+                 style="padding:.35rem .5rem; background:var(--surface); border:1px solid var(--border);
+                        border-radius:6px; color:var(--text); font-size:.85rem;">
+          <button type="submit" class="btn btn-sm btn-ghost">Guardar</button>
+        </form>
+      </td>
+      <td>{{ counts.get(s.id, 0) }}</td>
+      <td style="font-size:.78rem; color:var(--muted);">{{ s.created_at }}</td>
+      <td>
+        <form method="post" action="{{ admin_prefix }}/sites/{{ s.id }}/delete"
+              onsubmit="return confirm('¿Eliminar la sede &quot;{{ s.name }}&quot;? Sus clientes quedarán sin sede asignada.')">
+          <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="empty">No hay sedes creadas todavía.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

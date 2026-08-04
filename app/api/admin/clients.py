@@ -44,16 +44,21 @@ def _admin_user(request: Request) -> str:
 
 
 @router.get("/clients", response_class=HTMLResponse)
-async def clients_page(request: Request):
+async def clients_page(request: Request, site_id: str = ""):
     if not get_session(request):
         return login_redirect(request)
     from app.db.providers import get_active_providers
-    clients          = await get_all_clients_with_stats()
-    active_providers = await get_active_providers()
+    from app.db.sites import list_sites
+    _site_id_int      = int(site_id) if site_id else None
+    clients           = await get_all_clients_with_stats(_site_id_int)
+    active_providers  = await get_active_providers()
+    sites             = await list_sites()
     return templates.TemplateResponse(request, "clients.html", {
         "request":          request,
         "clients":          clients,
         "active_providers": active_providers,
+        "sites":            sites,
+        "selected_site":    _site_id_int,
         "public_url":       settings.PUBLIC_URL.rstrip("/"),
         "admin_prefix":     settings.ADMIN_PREFIX,
     })
@@ -67,13 +72,17 @@ async def create_client_action(
     provider: str = Form("groq"),
     ips: str = Form(""),
     notes: str = Form(""),
+    site_id: str = Form(""),
 ):
     if not get_session(request):
         return login_redirect(request)
 
     api_key = _gen()
     install_token = _gen()
-    await create_client(name, limit, api_key, install_token, provider, ips, notes)
+    new_id = await create_client(name, limit, api_key, install_token, provider, ips, notes)
+    if site_id:
+        from app.db.sites import set_client_site
+        await set_client_site(new_id, int(site_id))
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients?created=1", status_code=302)
 
 
@@ -119,6 +128,19 @@ async def update_provider(
     await update_client_provider(client_id, provider)
     if old:
         await log_audit(_admin_user(request), client_id, "provider", old["provider"], provider)
+    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
+
+
+@router.post("/clients/{client_id}/site")
+async def update_site(request: Request, client_id: int, site_id: str = Form("")):
+    if not get_session(request):
+        return login_redirect(request)
+    from app.db.sites import set_client_site
+    old = await _get_client(client_id)
+    new_site_id = int(site_id) if site_id else None
+    await set_client_site(client_id, new_site_id)
+    if old:
+        await log_audit(_admin_user(request), client_id, "site_id", old["site_id"], new_site_id)
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
 
 

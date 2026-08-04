@@ -26,7 +26,7 @@
   <h2>Reportes</h2>
   {% if rows %}
   <a class="btn btn-sm btn-ghost"
-     href="{{ admin_prefix }}/reports/export.csv?mode={{ mode }}&date={{ selected_day }}&month={{ selected_month }}{% if selected_client %}&client_id={{ selected_client }}{% endif %}">
+     href="{{ admin_prefix }}/reports/export.csv?mode={{ mode }}&date={{ selected_day }}&month={{ selected_month }}{% if selected_client %}&client_id={{ selected_client }}{% endif %}{% if selected_site %}&site_id={{ selected_site }}{% endif %}">
     ⬇ Exportar CSV
   </a>
   {% endif %}
@@ -34,9 +34,9 @@
 
 <form method="get" class="rep-controls">
   <span>Modo:</span>
-  <a href="?mode=day{% if selected_client %}&client_id={{ selected_client }}{% endif %}"
+  <a href="?mode=day{% if selected_client %}&client_id={{ selected_client }}{% endif %}{% if selected_site %}&site_id={{ selected_site }}{% endif %}"
      class="btn btn-sm {% if mode == 'day' %}btn-primary{% else %}btn-ghost{% endif %}">Por día</a>
-  <a href="?mode=month{% if selected_client %}&client_id={{ selected_client }}{% endif %}"
+  <a href="?mode=month{% if selected_client %}&client_id={{ selected_client }}{% endif %}{% if selected_site %}&site_id={{ selected_site }}{% endif %}"
      class="btn btn-sm {% if mode == 'month' %}btn-primary{% else %}btn-ghost{% endif %}">Por mes</a>
 
   {% if mode == 'day' %}
@@ -58,6 +58,16 @@
     <option value="{{ c.id }}" {% if selected_client == c.id %}selected{% endif %}>{{ c.name }}</option>
     {% endfor %}
   </select>
+
+  {% if sites %}
+  <span>Sede:</span>
+  <select name="site_id" class="input" style="max-width:160px;font-size:.82rem;">
+    <option value="">Todas</option>
+    {% for s in sites %}
+    <option value="{{ s.id }}" {% if selected_site == s.id %}selected{% endif %}>{{ s.name }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
 
   <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
 </form>
