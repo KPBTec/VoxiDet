@@ -7,6 +7,17 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.26.11 — 2026-08-04
+
+- Corregido: llamadas reales rechazadas ("Forbidden") cuando el servidor usa Cloudflare — el programa
+  instalado en el servidor de telefonía se identificaba con un nombre genérico que Cloudflare bloqueaba
+  automáticamente por seguridad. Ahora se identifica con nombre propio. **Importante**: si tenías este
+  problema, hay que volver a descargar el instalador en el servidor de telefonía después de actualizar
+  (el mismo comando `wget` de instalación) — la actualización automática usa el mismo canal que estaba
+  bloqueado, así que no puede corregirse sola.
+
+---
+
 ## v1.26.10 — 2026-08-04
 
 - Corregido: el proveedor de transcripción local Sherpa-onnx fallaba silenciosamente en todas las

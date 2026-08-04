@@ -23,6 +23,14 @@ _SERVER  = "__SERVER__"
 _API_KEY = "__APIKEY__"
 _VERSION = "__VERSION__"
 _TIMEOUT = 8
+# Python urllib manda "Python-urllib/3.x" como User-Agent por default si no
+# se lo pisa — es una de las firmas de "script genérico" más comunes que
+# Cloudflare (Bot Fight Mode / WAF) bloquea automáticamente antes de que la
+# request llegue al servidor. Un curl manual (User-Agent: curl/x.y) no cae en
+# esa regla, por eso las pruebas a mano funcionaban y las llamadas reales del
+# AGI no — el bloqueo nunca pasaba por el código de VoxiDet, quedaba en el
+# borde de Cloudflare. Nombre propio en vez del genérico de la librería.
+_UA = f"VoxiDet-AGI/{_VERSION}"
 
 
 # ── AGI helpers ──────────────────────────────────────────────────────────────
@@ -51,7 +59,7 @@ def _check_server():
     try:
         req = Request(
             f"{_SERVER}/amd/check",
-            headers={"X-API-Key": _API_KEY},
+            headers={"X-API-Key": _API_KEY, "User-Agent": _UA},
         )
         with urlopen(req, timeout=3) as r:
             data = json.loads(r.read())
@@ -79,7 +87,7 @@ def _self_update():
     # todos detectando la misma versión nueva al mismo tiempo tras un deploy).
     tmp = f"{path}.{os.getpid()}.{secrets.token_hex(4)}.tmp"
     try:
-        req = Request(f"{_SERVER}/amd/update", headers={"X-API-Key": _API_KEY})
+        req = Request(f"{_SERVER}/amd/update", headers={"X-API-Key": _API_KEY, "User-Agent": _UA})
         with urlopen(req, timeout=8) as r:
             new_code = r.read()
         with open(tmp, "wb") as f:
@@ -131,6 +139,7 @@ def _run_batch(uid, phone, lead_id, campaign_id, list_id):
             headers={
                 "Content-Type":  f"multipart/form-data; boundary={bnd}",
                 "X-API-Key":     _API_KEY,
+                "User-Agent":    _UA,
                 "X-Call-ID":     uid[:100],
                 "X-Caller-ID":   phone[:50],
                 "X-Lead-ID":     lead_id[:50],
@@ -177,7 +186,8 @@ def _ws_handshake(sock, host, path, uid, phone, lead_id, campaign_id, list_id):
         f"Upgrade: websocket\r\n"
         f"Connection: Upgrade\r\n"
         f"Sec-WebSocket-Key: {key}\r\n"
-        f"Sec-WebSocket-Version: 13\r\n\r\n"
+        f"Sec-WebSocket-Version: 13\r\n"
+        f"User-Agent: {_UA}\r\n\r\n"
     )
     sock.sendall(req.encode())
     resp = b""
