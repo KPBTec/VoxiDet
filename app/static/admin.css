@@ -302,6 +302,15 @@ body:not(.with-sidebar) .container    { max-width: 100%; padding: 0; }
   box-shadow: var(--shadow-sm);
 }
 
+/* Card que envuelve una tabla directamente: sin padding propio — la tabla va
+   al ras de los bordes de la card, mismo patrón que VoxiKam (el div que
+   envuelve <table> ahí no tiene ninguna clase de padding, solo los th/td
+   tienen la suya). Antes `.card` sumaba SU padding (1.4rem) ADEMÁS del
+   padding de las celdas — doble espacio antes del contenido real que no
+   existe en VoxiKam. No se puede sacar el padding de `.card` a secas: esa
+   clase también la usan tiles/formularios que sí necesitan su propio aire. */
+.card.card-table { padding: 0; }
+
 /* ── Table ───────────────────────────────────────────────────────────────── */
 table { width: 100%; border-collapse: collapse; }
 thead { background: var(--bg2); }

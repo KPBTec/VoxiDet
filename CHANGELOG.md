@@ -9,6 +9,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.26.6 — 2026-08-04
+
+- Mejorado: las tablas del panel (Clientes, Proveedores, Sedes, Logs, Usuarios, Reportes, Firewall)
+  ahora tienen menos espacio en blanco innecesario alrededor, más parecido al resto de las plataformas
+  KPBTec.
+
+---
+
 ## v1.26.5 — 2026-08-04
 
 - Corregido: el ancho del menú lateral ahora coincide exactamente con el resto de las plataformas
