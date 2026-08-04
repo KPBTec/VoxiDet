@@ -147,7 +147,7 @@ async def _get_deepgram_keys() -> list[dict]:
 _dg_idx = 0  # round-robin por worker — Deepgram rota por concurrencia, no RPM
 
 
-async def _transcribe_deepgram(pcm: bytes, session_id: str) -> str:
+async def _transcribe_deepgram(pcm: bytes, session_id: str) -> str | None:
     """Envía audio a Deepgram Nova-2. Rota entre keys por concurrencia (límite: 50/key)."""
     global _dg_idx
     keys = await _get_deepgram_keys()
@@ -179,12 +179,13 @@ async def _transcribe_deepgram(pcm: bytes, session_id: str) -> str:
             if resp.status_code == 429:
                 log.warning("[%s] Deepgram key[%d] límite concurrencia — rotando", session_id, idx)
                 continue
-            log.warning("[%s] Deepgram %s: %s", session_id, resp.status_code, resp.text[:200])
-            return ""
+            log.warning("[%s] Deepgram %s: %s — activando fallback", session_id, resp.status_code, resp.text[:200])
+            return None
         except Exception as e:
-            log.warning("[%s] Deepgram error: %s", session_id, e)
-            return ""
-    return ""
+            log.warning("[%s] Deepgram error: %s — activando fallback", session_id, e)
+            return None
+    log.warning("[%s] Deepgram: todas las keys al límite — activando fallback", session_id)
+    return None
 
 
 async def _transcribe_groq(pcm: bytes, session_id: str) -> str:
@@ -238,95 +239,125 @@ async def _transcribe_groq(pcm: bytes, session_id: str) -> str:
 
 
 async def _transcribe_openai(pcm: bytes, session_id: str) -> str | None:
-    """OpenAI gpt-4o-transcribe / gpt-4o-mini-transcribe. Retorna None en error de servicio."""
+    """OpenAI gpt-4o-transcribe / gpt-4o-mini-transcribe. Retorna None en error de servicio
+    (activa fallback a Groq) solo después de agotar todas las keys configuradas — antes
+    probaba una sola key fija por sesión (hash de session_id) y caía a Groq entero ante
+    cualquier 429, sin rotar entre sus propias keys como sí hacían Groq/Deepgram."""
     keys = await _get_openai_keys()
     if not keys or len(pcm) < 1600:
         return ""
     wav   = _pcm_to_wav(pcm)
-    pos   = _pick_key_index(session_id, keys)
-    idx, key = keys[pos]["id"], keys[pos]["key"]
-    model = await get_provider_model("openai", idx)
-    try:
-        # gpt-4o-transcribe/mini no soporta prompt como Whisper — lo alucina como audio
-        # Solo enviamos prompt para whisper-1 que lo usa correctamente como vocabulary hint
-        data: dict = {"model": model, "language": "es", "response_format": "json"}
-        if model == "whisper-1":
-            data["prompt"] = _build_groq_prompt()
-        client = get_http_client()
-        resp = await client.post(
-            "https://api.openai.com/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {key}"},
-            files={"file": ("audio.wav", wav, "audio/wav")},
-            data=data,
-            timeout=settings.ASR_TIMEOUT_OPENAI,
-        )
-        if resp.status_code == 200:
-            return resp.json().get("text", "").strip()
-        log.warning("[%s] OpenAI %s — activando fallback", session_id, resp.status_code)
-        return None  # 429, 5xx → fallback
-    except Exception as e:
-        log.warning("[%s] OpenAI error: %s — activando fallback", session_id, e)
-        return None
+    start = _pick_key_index(session_id, keys)
+
+    for attempt in range(len(keys)):
+        pos = (start + attempt) % len(keys)
+        idx, key = keys[pos]["id"], keys[pos]["key"]
+        model = await get_provider_model("openai", idx)
+        try:
+            # gpt-4o-transcribe/mini no soporta prompt como Whisper — lo alucina como audio
+            # Solo enviamos prompt para whisper-1 que lo usa correctamente como vocabulary hint
+            data: dict = {"model": model, "language": "es", "response_format": "json"}
+            if model == "whisper-1":
+                data["prompt"] = _build_groq_prompt()
+            client = get_http_client()
+            resp = await client.post(
+                "https://api.openai.com/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {key}"},
+                files={"file": ("audio.wav", wav, "audio/wav")},
+                data=data,
+                timeout=settings.ASR_TIMEOUT_OPENAI,
+            )
+            if resp.status_code == 200:
+                return resp.json().get("text", "").strip()
+            if resp.status_code == 429:
+                log.warning("[%s] OpenAI key[%d] límite (429) — rotando", session_id, idx)
+                continue
+            log.warning("[%s] OpenAI %s — activando fallback", session_id, resp.status_code)
+            return None  # 5xx u otro error real → fallback
+        except Exception as e:
+            log.warning("[%s] OpenAI error: %s — activando fallback", session_id, e)
+            return None
+    log.warning("[%s] OpenAI: todas las keys al límite — activando fallback", session_id)
+    return None
 
 
 async def _transcribe_together(pcm: bytes, session_id: str) -> str | None:
-    """Together AI Whisper/Parakeet. Retorna None en error de servicio para activar fallback."""
+    """Together AI Whisper/Parakeet. Retorna None en error de servicio para activar fallback,
+    solo después de agotar todas las keys configuradas (mismo fix que OpenAI/Fireworks — antes
+    probaba una sola key fija por sesión, sin rotar entre las propias)."""
     keys = await _get_together_keys()
     if not keys or len(pcm) < 1600:
         return ""
     wav   = _pcm_to_wav(pcm)
-    pos   = _pick_key_index(session_id, keys)
-    idx, key = keys[pos]["id"], keys[pos]["key"]
-    model = await get_provider_model("together", idx)
-    try:
-        # prompt solo para modelos Whisper (Parakeet CTC no lo soporta)
-        req_data: dict = {"model": model, "language": "es", "response_format": "json"}
-        if "whisper" in model.lower():
-            raw_prompt = _build_groq_prompt()
-            # Whisper limit ~224 tokens ≈ 800 chars en español con tildes
-            req_data["prompt"] = raw_prompt[:800]
-        client = get_http_client()
-        resp = await client.post(
-            "https://api.together.xyz/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {key}"},
-            files={"file": ("audio.wav", wav, "audio/wav")},
-            data=req_data,
-            timeout=settings.ASR_TIMEOUT_TOGETHER,
-        )
-        if resp.status_code == 200:
-            return resp.json().get("text", "").strip()
-        log.warning("[%s] Together %s: %s — activando fallback", session_id, resp.status_code, resp.text[:200])
-        return None  # 400/429/5xx → fallback
-    except Exception as e:
-        log.warning("[%s] Together error: %s — activando fallback", session_id, e)
-        return None
+    start = _pick_key_index(session_id, keys)
+
+    for attempt in range(len(keys)):
+        pos = (start + attempt) % len(keys)
+        idx, key = keys[pos]["id"], keys[pos]["key"]
+        model = await get_provider_model("together", idx)
+        try:
+            # prompt solo para modelos Whisper (Parakeet CTC no lo soporta)
+            req_data: dict = {"model": model, "language": "es", "response_format": "json"}
+            if "whisper" in model.lower():
+                raw_prompt = _build_groq_prompt()
+                # Whisper limit ~224 tokens ≈ 800 chars en español con tildes
+                req_data["prompt"] = raw_prompt[:800]
+            client = get_http_client()
+            resp = await client.post(
+                "https://api.together.xyz/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {key}"},
+                files={"file": ("audio.wav", wav, "audio/wav")},
+                data=req_data,
+                timeout=settings.ASR_TIMEOUT_TOGETHER,
+            )
+            if resp.status_code == 200:
+                return resp.json().get("text", "").strip()
+            if resp.status_code == 429:
+                log.warning("[%s] Together key[%d] límite (429) — rotando", session_id, idx)
+                continue
+            log.warning("[%s] Together %s: %s — activando fallback", session_id, resp.status_code, resp.text[:200])
+            return None  # 400/5xx u otro error real → fallback
+        except Exception as e:
+            log.warning("[%s] Together error: %s — activando fallback", session_id, e)
+            return None
+    log.warning("[%s] Together: todas las keys al límite — activando fallback", session_id)
+    return None
 
 
 async def _transcribe_fireworks(pcm: bytes, session_id: str) -> str | None:
-    """Fireworks Whisper. Retorna None en error de servicio para activar fallback."""
+    """Fireworks Whisper. Retorna None en error de servicio para activar fallback, solo después
+    de agotar todas las keys configuradas (mismo fix que OpenAI/Together)."""
     keys = await _get_fireworks_keys()
     if not keys or len(pcm) < 1600:
         return ""
     wav   = _pcm_to_wav(pcm)
-    pos   = _pick_key_index(session_id, keys)
-    idx, key = keys[pos]["id"], keys[pos]["key"]
-    model = await get_provider_model("fireworks", idx)
-    try:
-        client = get_http_client()
-        resp = await client.post(
-            "https://api.fireworks.ai/inference/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {key}"},
-            files={"file": ("audio.wav", wav, "audio/wav")},
-            data={"model": model, "language": "es", "prompt": _build_groq_prompt(), "response_format": "json"},
-            timeout=settings.ASR_TIMEOUT_FIREWORKS,
-        )
-        if resp.status_code == 200:
-            return resp.json().get("text", "").strip()
-        log.warning("[%s] Fireworks %s — activando fallback", session_id, resp.status_code)
-        return None  # 429, 5xx → fallback
-    except Exception as e:
-        log.warning("[%s] Fireworks error: %s — activando fallback", session_id, e)
-        return None
+    start = _pick_key_index(session_id, keys)
+
+    for attempt in range(len(keys)):
+        pos = (start + attempt) % len(keys)
+        idx, key = keys[pos]["id"], keys[pos]["key"]
+        model = await get_provider_model("fireworks", idx)
+        try:
+            client = get_http_client()
+            resp = await client.post(
+                "https://api.fireworks.ai/inference/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {key}"},
+                files={"file": ("audio.wav", wav, "audio/wav")},
+                data={"model": model, "language": "es", "prompt": _build_groq_prompt(), "response_format": "json"},
+                timeout=settings.ASR_TIMEOUT_FIREWORKS,
+            )
+            if resp.status_code == 200:
+                return resp.json().get("text", "").strip()
+            if resp.status_code == 429:
+                log.warning("[%s] Fireworks key[%d] límite (429) — rotando", session_id, idx)
+                continue
+            log.warning("[%s] Fireworks %s — activando fallback", session_id, resp.status_code)
+            return None  # 5xx u otro error real → fallback
+        except Exception as e:
+            log.warning("[%s] Fireworks error: %s — activando fallback", session_id, e)
+            return None
+    log.warning("[%s] Fireworks: todas las keys al límite — activando fallback", session_id)
+    return None
 
 
 # ── Deepgram v2: streaming WebSocket en tiempo real ──────────────────────────

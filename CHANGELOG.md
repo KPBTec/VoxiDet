@@ -9,6 +9,17 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.24.0 — 2026-08-04
+
+- Mejorado: mayor resiliencia en la transcripción de audio — si una credencial de un proveedor falla,
+  el sistema ahora prueba automáticamente con otra antes de darse por vencido, en más situaciones que
+  antes.
+- Corregido: en el modo de detección en tiempo real (streaming), algunos proveedores no pasaban
+  correctamente a un proveedor alternativo cuando fallaban — ahora todos se comportan de forma
+  consistente.
+
+---
+
 ## v1.23.1 — 2026-08-04
 
 - Nuevo: botón para exportar los reportes a CSV, tanto por día como por mes.

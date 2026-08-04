@@ -128,6 +128,9 @@ async def layer2_deepgram(audio_bytes: bytes, aggressive: bool = False) -> tuple
             if resp.status_code == 429:
                 log.warning("L2 deepgram: key[%d] límite (429) — rotando", idx)
                 continue
+            if resp.status_code in _ROTATE_STATUS:
+                log.warning("L2 deepgram: key[%d] %s — rotando", idx, resp.status_code)
+                continue
             resp.raise_for_status()
             transcript = (
                 resp.json()
@@ -143,14 +146,14 @@ async def layer2_deepgram(audio_bytes: bytes, aggressive: bool = False) -> tuple
             return _classify_transcript(transcript, aggressive=aggressive), transcript
 
         except httpx.TimeoutException:
-            log.warning("L2 deepgram: timeout → UNKNOWN")
-            await _mark_provider_down("deepgram")
-            return "UNKNOWN", ""
+            log.warning("L2 deepgram: key[%d] timeout — rotando", idx)
+            continue
         except Exception as e:
             log.error("L2 deepgram error: %s", e)
             await _mark_provider_down("deepgram")
             return "UNKNOWN", ""
-    log.warning("L2 deepgram: las %d keys configuradas están al límite → UNKNOWN", len(key_entries))
+    log.warning("L2 deepgram: las %d keys configuradas fallaron → UNKNOWN", len(key_entries))
+    await _mark_provider_down("deepgram")
     return "UNKNOWN", ""
 
 
@@ -230,18 +233,21 @@ async def layer2_groq(audio_bytes: bytes, aggressive: bool = False) -> tuple[str
                     pass
                 log.warning("L2 groq: key[%d] 429 inesperado — contador Redis sincronizado", idx)
                 continue
+            if resp.status_code in _ROTATE_STATUS:
+                log.warning("L2 groq: key[%d] %s — rotando", idx, resp.status_code)
+                continue
             log.warning("L2 groq: %s — %s", resp.status_code, resp.text[:200])
             await _mark_provider_down("groq")
             return "UNKNOWN", ""
         except httpx.TimeoutException:
-            log.warning("L2 groq: timeout → UNKNOWN")
-            await _mark_provider_down("groq")
-            return "UNKNOWN", ""
+            log.warning("L2 groq: key[%d] timeout — rotando", idx)
+            continue
         except Exception as e:
             log.error("L2 groq error: %s", e)
             await _mark_provider_down("groq")
             return "UNKNOWN", ""
-    log.warning("L2 groq: las %d keys configuradas están al límite RPM → UNKNOWN", len(key_entries))
+    log.warning("L2 groq: las %d keys configuradas fallaron → UNKNOWN", len(key_entries))
+    await _mark_provider_down("groq")
     return "UNKNOWN", ""
 
 
@@ -280,18 +286,21 @@ async def layer2_openai(audio_bytes: bytes, aggressive: bool = False) -> tuple[s
             if resp.status_code == 429:
                 log.warning("L2 openai: key[%d] límite (429) — rotando", idx)
                 continue
+            if resp.status_code in _ROTATE_STATUS:
+                log.warning("L2 openai: key[%d] %s — rotando", idx, resp.status_code)
+                continue
             log.warning("L2 openai: %s — %s", resp.status_code, resp.text[:200])
             await _mark_provider_down("openai")
             return "UNKNOWN", ""
         except httpx.TimeoutException:
-            log.warning("L2 openai: timeout → UNKNOWN")
-            await _mark_provider_down("openai")
-            return "UNKNOWN", ""
+            log.warning("L2 openai: key[%d] timeout — rotando", idx)
+            continue
         except Exception as e:
             log.error("L2 openai error: %s", e)
             await _mark_provider_down("openai")
             return "UNKNOWN", ""
-    log.warning("L2 openai: las %d keys configuradas están al límite → UNKNOWN", len(key_entries))
+    log.warning("L2 openai: las %d keys configuradas fallaron → UNKNOWN", len(key_entries))
+    await _mark_provider_down("openai")
     return "UNKNOWN", ""
 
 
@@ -330,18 +339,21 @@ async def layer2_together(audio_bytes: bytes, aggressive: bool = False) -> tuple
             if resp.status_code == 429:
                 log.warning("L2 together: key[%d] límite (429) — rotando", idx)
                 continue
+            if resp.status_code in _ROTATE_STATUS:
+                log.warning("L2 together: key[%d] %s — rotando", idx, resp.status_code)
+                continue
             log.warning("L2 together: %s — %s", resp.status_code, resp.text[:200])
             await _mark_provider_down("together")
             return "UNKNOWN", ""
         except httpx.TimeoutException:
-            log.warning("L2 together: timeout → UNKNOWN")
-            await _mark_provider_down("together")
-            return "UNKNOWN", ""
+            log.warning("L2 together: key[%d] timeout — rotando", idx)
+            continue
         except Exception as e:
             log.error("L2 together error: %s", e)
             await _mark_provider_down("together")
             return "UNKNOWN", ""
-    log.warning("L2 together: las %d keys configuradas están al límite → UNKNOWN", len(key_entries))
+    log.warning("L2 together: las %d keys configuradas fallaron → UNKNOWN", len(key_entries))
+    await _mark_provider_down("together")
     return "UNKNOWN", ""
 
 
@@ -380,18 +392,21 @@ async def layer2_fireworks(audio_bytes: bytes, aggressive: bool = False) -> tupl
             if resp.status_code == 429:
                 log.warning("L2 fireworks: key[%d] límite (429) — rotando", idx)
                 continue
+            if resp.status_code in _ROTATE_STATUS:
+                log.warning("L2 fireworks: key[%d] %s — rotando", idx, resp.status_code)
+                continue
             log.warning("L2 fireworks: %s — %s", resp.status_code, resp.text[:200])
             await _mark_provider_down("fireworks")
             return "UNKNOWN", ""
         except httpx.TimeoutException:
-            log.warning("L2 fireworks: timeout → UNKNOWN")
-            await _mark_provider_down("fireworks")
-            return "UNKNOWN", ""
+            log.warning("L2 fireworks: key[%d] timeout — rotando", idx)
+            continue
         except Exception as e:
             log.error("L2 fireworks error: %s", e)
             await _mark_provider_down("fireworks")
             return "UNKNOWN", ""
-    log.warning("L2 fireworks: las %d keys configuradas están al límite → UNKNOWN", len(key_entries))
+    log.warning("L2 fireworks: las %d keys configuradas fallaron → UNKNOWN", len(key_entries))
+    await _mark_provider_down("fireworks")
     return "UNKNOWN", ""
 
 
@@ -488,7 +503,18 @@ _NEVER_AUTO_FALLBACK = {"sherpa_large"}
 # tras request, sin ninguna memoria entre llamadas. Redis (no memoria local)
 # porque el estado tiene que ser el mismo para los 11 workers de gunicorn —
 # un proveedor caído lo está para todos, no solo para el worker que lo notó.
-_CIRCUIT_TTL = 45  # segundos que un proveedor queda en cooldown tras un fallo real (timeout/excepción/5xx)
+_CIRCUIT_TTL = 45
+
+# Códigos que se tratan como "esta key específica falló, probar la siguiente"
+# en vez de "el proveedor entero está caído" — 401/403 pueden ser una key
+# puntual revocada/inválida, no necesariamente todas; 500/502/503 son errores
+# transitorios del lado del proveedor que otra key (u otro intento) puede no
+# repetir. 429 sigue su propio manejo particular en cada función (groq
+# necesita sincronizar el contador de Redis). Cualquier otro código (400,
+# 404, etc.) sigue abortando de una vía `raise_for_status()`/chequeo manual —
+# no tiene sentido rotar de key ante un request malformado, todas fallarían
+# igual.
+_ROTATE_STATUS = {401, 403, 500, 502, 503}  # segundos que un proveedor queda en cooldown tras un fallo real (timeout/excepción/5xx)
 
 
 async def _mark_provider_down(provider: str) -> None:
