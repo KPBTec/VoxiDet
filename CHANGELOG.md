@@ -9,6 +9,13 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.26.5 — 2026-08-04
+
+- Corregido: el ancho del menú lateral ahora coincide exactamente con el resto de las plataformas
+  KPBTec (antes era unos pocos píxeles más ancho).
+
+---
+
 ## v1.26.4 — 2026-08-04
 
 - Mejorado: el selector de tema visual ahora aparece como una opción propia del menú ("Apariencia"),

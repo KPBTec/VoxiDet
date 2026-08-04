@@ -75,8 +75,8 @@ body.with-sidebar { display: flex; min-height: 100vh; }
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 .sidebar {
-  width: 228px;
-  min-width: 228px;
+  width: 224px;    /* 14rem — mismo valor que VoxiKam (Sidebar.tsx, Tailwind w-56) */
+  min-width: 224px;
   background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
@@ -257,7 +257,7 @@ body.with-sidebar { display: flex; min-height: 100vh; }
    .container con flex:1 lo empuja al fondo real del viewport en páginas
    cortas, sin afectar páginas largas (mismo patrón que VoxiKam: flex-col +
    flex-1 en el layout admin). */
-.main-content { margin-left: 228px; flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.main-content { margin-left: 224px; flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .container    { max-width: 1520px; margin: 0; padding: 1.75rem 2rem; flex: 1 0 auto; width: 100%; }
 
 /* Sin sidebar (login) — quitar margin y container */
