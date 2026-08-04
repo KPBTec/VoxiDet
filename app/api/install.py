@@ -27,7 +27,13 @@ async def _resolve_server_url(request: Request) -> str:
     """
     db_override = await get_setting("public_url")
     if db_override:
-        return db_override.rstrip("/")
+        db_override = db_override.rstrip("/")
+        # Mismo auto-fix que abajo para settings.PUBLIC_URL — /system ya valida
+        # el esquema al guardar, esto es solo defensa en profundidad por si el
+        # valor llega a `app_settings` sin pasar por ese form.
+        if "://" not in db_override:
+            db_override = "http://" + db_override
+        return db_override
 
     pub = (settings.PUBLIC_URL or "").rstrip("/")
     if pub and not any(p in pub for p in _PLACEHOLDER):

@@ -138,6 +138,22 @@ _vosk_asr:         VoskASR   | None = None
 _sherpa_asr:       SherpaASR | None = None
 _sherpa_large_asr: SherpaASR | None = None   # whisper-large-v3 completo (opt-in, v1.19.0)
 
+# Semáforos para evitar sobre-suscripción de CPU en ráfagas de transcripción
+# simultánea (v1.26.0) — sin esto, una ráfaga de N llamadas concurrentes
+# lanzaba N transcripciones locales a la vez en el ThreadPoolExecutor default
+# de asyncio, sin ningún límite relacionado a los cores reales del host.
+# Sherpa crea su OfflineRecognizer con num_threads=4 fijo (ver SherpaASR.__init__)
+# — cada transcripción ya consume 4 threads de CPU por sí sola, así que el
+# límite de concurrencia se calcula dividiendo por 4 para no exceder los cores
+# disponibles. Vosk no fija threads explícitos y es más liviano por llamada,
+# así que su semáforo permite más concurrencia. Comparten `_sherpa_asr` y
+# `_sherpa_large_asr` el mismo semáforo — compiten por el mismo presupuesto de
+# CPU del host, no tiene sentido sumarles cupos independientes.
+_SHERPA_CONCURRENCY = max(1, (os.cpu_count() or 4) // 4)
+_VOSK_CONCURRENCY   = max(2, os.cpu_count() or 4)
+_sherpa_semaphore = asyncio.Semaphore(_SHERPA_CONCURRENCY)
+_vosk_semaphore   = asyncio.Semaphore(_VOSK_CONCURRENCY)
+
 
 def init_vosk(model_path: str) -> None:
     global _vosk_asr
@@ -316,9 +332,10 @@ async def transcribe_vosk(pcm: bytes, session_id: str) -> str:
         return ""
     grammar = _build_vosk_grammar()
     try:
-        return await asyncio.get_event_loop().run_in_executor(
-            None, asr.transcribe_sync, pcm, grammar
-        )
+        async with _vosk_semaphore:
+            return await asyncio.get_event_loop().run_in_executor(
+                None, asr.transcribe_sync, pcm, grammar
+            )
     except Exception as e:
         log.warning("[%s] Vosk error: %s", session_id, e)
         return ""
@@ -329,9 +346,10 @@ async def transcribe_sherpa(pcm: bytes, session_id: str) -> str:
     if not asr or len(pcm) < 1600:
         return ""
     try:
-        return await asyncio.get_event_loop().run_in_executor(
-            None, asr.transcribe_sync, pcm
-        )
+        async with _sherpa_semaphore:
+            return await asyncio.get_event_loop().run_in_executor(
+                None, asr.transcribe_sync, pcm
+            )
     except Exception as e:
         log.warning("[%s] Sherpa error: %s", session_id, e)
         return ""
@@ -344,9 +362,10 @@ async def transcribe_sherpa_large(pcm: bytes, session_id: str) -> str:
     if not asr or len(pcm) < 1600:
         return ""
     try:
-        return await asyncio.get_event_loop().run_in_executor(
-            None, asr.transcribe_sync, pcm
-        )
+        async with _sherpa_semaphore:
+            return await asyncio.get_event_loop().run_in_executor(
+                None, asr.transcribe_sync, pcm
+            )
     except Exception as e:
         log.warning("[%s] Sherpa (large-v3) error: %s", session_id, e)
         return ""

@@ -14,6 +14,11 @@ engine = create_async_engine(
     pool_pre_ping=False,   # aiomysql 0.2.0 no soporta ping() de SQLAlchemy 2.0
     pool_recycle=1800,
     echo=False,
+    # Sin esto, una conexión que se cuelga (MySQL caído/red particionada) solo
+    # cortaba cuando el backstop de 120s del worker timeout de gunicorn mataba
+    # el proceso entero — mata este único request en 10s en vez de esperar ese
+    # backstop mucho más agresivo.
+    connect_args={"connect_timeout": 10},
 )
 # 90/worker (antes 30) — scripts/autotune.sh calcula MYSQL_MAX_CONNECTIONS con este
 # mismo número (workers * 90 + 20) para que el tope de MySQL siga siendo el máximo

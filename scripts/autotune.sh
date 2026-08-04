@@ -96,7 +96,12 @@ MYSQL_BUFFER_POOL_MB=$(( MYSQL_MEM_LIMIT_MB * 6 / 10 ))
 # 90 = pool_size(40) + max_overflow(50) por worker, ver app/db/engine.py —
 # mantiene MYSQL_MAX_CONNECTIONS como el máximo real que la app puede abrir,
 # no un número arbitrario. Si cambias el pool en engine.py, actualiza este *90.
-MYSQL_MAX_CONNECTIONS=$(( UVICORN_WORKERS * 90 + 20 ))
+# +20% (no un +20 fijo) para conexiones fuera del pool de uvicorn (CLI/manage.py,
+# migraciones, mysqldump, queries directas de admin) — mismo criterio de margen
+# proporcional que ya se aplicó a API_MEM_LIMIT_MB arriba, escala con el tamaño
+# real del host en vez de quedarse corto en instalaciones grandes con muchos
+# workers (un +20 fijo es insignificante frente a 32 workers * 90 = 2880).
+MYSQL_MAX_CONNECTIONS=$(( UVICORN_WORKERS * 90 * 120 / 100 ))
 [[ $MYSQL_MAX_CONNECTIONS -lt 151 ]] && MYSQL_MAX_CONNECTIONS=151
 
 NOFILE_LIMIT=$(( UVICORN_WORKERS * 8192 ))

@@ -215,7 +215,7 @@
         </form>
         <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/keywords-mode" style="display:inline;">
           <select name="mode" onchange="this.form.submit()"
-                  title="Global: solo keywords globales · Custom: keywords globales + propias del cliente"
+                  title="Global (default): la detección de este cliente solo usa las keywords globales del panel (/admin/keywords). Custom: además de las globales, suma las keywords propias de este cliente (botón &quot;KW&quot; a la derecha) — nunca las reemplaza, solo agrega vocabulario extra específico de este cliente."
                   style="background:transparent; border:1px solid var(--border); border-radius:4px; font-size:.72rem; padding:.15rem .3rem; color:{{ 'var(--signal)' if c.keywords_mode == 'custom' else 'var(--text)' }};">
             <option value="global" {% if c.keywords_mode != 'custom' %}selected{% endif %}>Global</option>
             <option value="custom" {% if c.keywords_mode == 'custom' %}selected{% endif %}>Custom</option>

@@ -9,6 +9,17 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.26.0 — 2026-08-04
+
+- Mejorado: mayor estabilidad del motor de transcripción local ante ráfagas de llamadas simultáneas,
+  evitando sobrecarga de procesador.
+- Mejorado: las conexiones a la base de datos ahora fallan más rápido si hay un problema de red, en vez
+  de quedar colgadas.
+- Mejorado: pequeños ajustes de configuración interna para que el sistema escale mejor en servidores con
+  más capacidad.
+
+---
+
 ## v1.25.0 — 2026-08-04
 
 - Nuevo: soporte para agrupar clientes por sede/sucursal. Se puede crear y administrar sedes desde el
