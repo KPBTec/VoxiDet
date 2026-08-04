@@ -31,7 +31,7 @@ BLOCKED_UAS = {
 # CSP cubre el panel admin real (server-rendered), no solo JSON como en
 # VoxiKam — por eso permite Google Fonts (style-src/font-src). Chart.js está
 # vendorizado en /static/vendor/ (ya no jsdelivr), así que script-src no
-# necesita ningún host externo.
+# necesita ningún host externo salvo el de abajo.
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options":        "DENY",
@@ -40,11 +40,16 @@ SECURITY_HEADERS = {
     "Permissions-Policy":     "geolocation=(), microphone=(), camera=()",
     "Content-Security-Policy": (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline'; "
+        # static.cloudflareinsights.com: Cloudflare inyecta este beacon solo
+        # cuando el dominio pasa por su proxy con Web Analytics activado en
+        # el dashboard de Cloudflare — no es algo que VoxiDet agregue, pero
+        # sin este host en script-src el propio CSP lo bloquea y ensucia la
+        # consola con violaciones en cada carga de página.
+        "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "img-src 'self' data:; "
         "font-src 'self' data: https://fonts.gstatic.com; "
-        "connect-src 'self';"
+        "connect-src 'self' https://cloudflareinsights.com;"
     ),
     "Server": "VoxiDet",
 }

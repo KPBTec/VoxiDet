@@ -9,6 +9,15 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.26.7 — 2026-08-04
+
+- Corregido: el botón "Copiar comando AGI" ahora usa el dominio público configurado, en vez de la
+  dirección interna del servidor.
+- Corregido: un mensaje de advertencia innecesario en la consola del navegador relacionado con
+  Cloudflare Analytics.
+
+---
+
 ## v1.26.6 — 2026-08-04
 
 - Mejorado: las tablas del panel (Clientes, Proveedores, Sedes, Logs, Usuarios, Reportes, Firewall)

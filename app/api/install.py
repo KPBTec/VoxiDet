@@ -16,7 +16,7 @@ router = APIRouter()
 _PLACEHOLDER = {"IP_VPS", "localhost", "tudominio"}
 
 
-async def _resolve_server_url(request: Request) -> str:
+async def resolve_server_url(request: Request) -> str:
     """
     Devuelve la URL base del servidor.
     Prioridad: dominio configurado desde el panel (app_settings, MySQL) →
@@ -67,7 +67,7 @@ async def install_agi(install_token: str, request: Request):
     if not client or not client["active"]:
         raise HTTPException(status_code=401, detail="Token inválido o cliente inactivo")
 
-    server_url = await _resolve_server_url(request)
+    server_url = await resolve_server_url(request)
     script = (TEMPLATE
         .replace("__SERVER__",  server_url)
         .replace("__APIKEY__",  client["api_key"])

@@ -49,6 +49,7 @@ async def clients_page(request: Request, site_id: str = ""):
         return login_redirect(request)
     from app.db.providers import get_active_providers
     from app.db.sites import list_sites
+    from app.api.install import resolve_server_url
     _site_id_int      = int(site_id) if site_id else None
     clients           = await get_all_clients_with_stats(_site_id_int)
     active_providers  = await get_active_providers()
@@ -59,7 +60,13 @@ async def clients_page(request: Request, site_id: str = ""):
         "active_providers": active_providers,
         "sites":            sites,
         "selected_site":    _site_id_int,
-        "public_url":       settings.PUBLIC_URL.rstrip("/"),
+        # resolve_server_url() chequea el dominio configurado en /system
+        # (app_settings, MySQL) ANTES que settings.PUBLIC_URL crudo — sin
+        # esto, "Copiar comando AGI" horneaba la IP interna de
+        # credentials.conf en vez del dominio público que el admin configuró
+        # a propósito, aun cuando /install/{token} (el link real de
+        # descarga) ya usaba el dominio correcto.
+        "public_url":       await resolve_server_url(request),
         "admin_prefix":     settings.ADMIN_PREFIX,
     })
 
