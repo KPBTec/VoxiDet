@@ -9,6 +9,13 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
+## v1.26.3 — 2026-08-04
+
+- Corregido: el texto debajo del formulario de inicio de sesión ("Voice Detection AI") aparecía todo
+  en mayúsculas — ahora se muestra normal, igual que en el resto de las plataformas KPBTec.
+
+---
+
 ## v1.26.2 — 2026-08-04
 
 - Corregido: en instalaciones muy antiguas, el instalador podía mostrar la versión instalada como

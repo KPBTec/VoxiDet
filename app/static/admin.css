@@ -587,11 +587,14 @@ select option { background: var(--bg2); }
   color: var(--muted);
 }
 
+/* Sin text-transform: uppercase — mismo criterio que el tagline de VoxiKam
+   ("SIP Class 4 · Billing & Traffic Control"), que va en mayúscula/minúscula
+   normal, no en versalitas forzadas. Mayúscula sostenida en una frase de 3
+   palabras se lee como un label de UI, no como una descripción de producto. */
 .login-tagline {
   font-size: .72rem;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .06em;
+  opacity: .7;
 }
 
 .login-card .field { margin-bottom: .9rem; }
