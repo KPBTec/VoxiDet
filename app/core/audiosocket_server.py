@@ -156,12 +156,12 @@ async def _store_result(call_uuid: str, payload: dict) -> None:
 
 
 async def handle_connection(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-    from app.core.silero_vad import make_detector
-    from app.db.providers import get_vad_engine
-    from app.api.stream import _decide_and_send
-    from app.db.logs import save_log
-    from app.db.client_keywords import get_cached_client_keywords
-
+    # Los imports pesados (numpy vía silero_vad, DB, etc.) van DESPUÉS de
+    # confirmar que la conexión tiene un registro válido — antes vivían acá
+    # arriba y corrían en TODAS las conexiones, incluidas las que se iban a
+    # rechazar de una por no tener /register previo (una fuente de tráfico
+    # basura/mal configurado no debería pagar el costo de cargar el motor de
+    # detección solo para ser rechazada).
     peer = writer.get_extra_info("peername")
     call_uuid: str | None = None
     t0 = time.monotonic()
@@ -187,6 +187,12 @@ async def handle_connection(reader: asyncio.StreamReader, writer: asyncio.Stream
             pass
         writer.close()
         return
+
+    from app.core.silero_vad import make_detector
+    from app.db.providers import get_vad_engine
+    from app.api.stream import _decide_and_send
+    from app.db.logs import save_log
+    from app.db.client_keywords import get_cached_client_keywords
 
     client      = pending["client"]
     provider    = client.get("provider", "groq")

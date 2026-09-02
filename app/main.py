@@ -24,6 +24,7 @@ from app.core import usage_sync
 from app.core.local_asr import init_vosk, init_sherpa, init_sherpa_large, discover_models
 from app.core.silero_vad import init_silero_vad
 from app.core.http_client import close_http_client
+from app.core.audiosocket_server import create_listening_socket, start_audiosocket_server
 
 _APP_DIR = pathlib.Path(__file__).parent
 
@@ -57,6 +58,14 @@ if _models["sherpa_large"]:
 if _models["silero"]:
     init_silero_vad(_models["silero"])
 
+# AudioSocket (v1.27.0): bind+listen ANTES del fork, mismo motivo que los
+# modelos de arriba — bajo gunicorn --preload, todos los workers heredan el
+# mismo socket ya escuchando por copy-on-write. Si cada worker intentara
+# bindear el puerto por su cuenta en lifespan() (que corre DESPUÉS del fork,
+# dentro de cada worker), solo el primero lo conseguiría — "Address already
+# in use" en los otros 10.
+_audiosocket_sock = create_listening_socket()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -67,7 +76,10 @@ async def lifespan(app: FastAPI):
     await usage_sync.start()
     from app.api.stream import _log_groq_keys
     await _log_groq_keys()
+    audiosocket_server = await start_audiosocket_server(_audiosocket_sock)
     yield
+    audiosocket_server.close()
+    await audiosocket_server.wait_closed()
     await close_http_client()
     log.info("VoxiDet detenido.")
 

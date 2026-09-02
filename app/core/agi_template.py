@@ -336,6 +336,74 @@ def _run_stream(uid, phone, lead_id, campaign_id, list_id):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+# ── Modo Audiosocket (v1.27.0) — dos fases separadas, invocadas por el
+# dialplan alrededor de AudioSocket() nativo (no algo que este script pueda
+# manejar solo, a diferencia de batch/stream: AudioSocket() es una app de
+# dialplan, Asterisk maneja el audio directo, este script solo registra
+# ANTES y consulta el resultado DESPUÉS). Dialplan de referencia:
+#   same => n,Set(CALL_UUID=${SHELL(cat /proc/sys/kernel/random/uuid)})
+#   same => n,AGI(amd_ia.agi,register,${CALL_UUID})
+#   same => n,AudioSocket(${CALL_UUID},__SERVER_HOST__:__AUDIOSOCKET_PORT__)
+#   same => n,AGI(amd_ia.agi,result,${CALL_UUID})
+# (validar la sintaxis exacta de generación de UUID contra la versión real
+# de Asterisk antes de usar en producción — no se pudo probar en vivo).
+def _run_audiosocket_phase(phase, call_uuid):
+    if not call_uuid:
+        _log("AMD-IA audiosocket: falta UUID (agi_arg_2)")
+        _set("AMDSTATUS", "ERROR")
+        return
+
+    if phase == "register":
+        phone       = _get_var("phone_number") or _get_var("CALLED") or ""
+        lead_id     = _get_var("lead_id")
+        campaign_id = _get_var("campaign_id")
+        list_id     = _get_var("list_id")
+        try:
+            req = Request(
+                f"{_SERVER}/amd/audiosocket/register",
+                data=b"",
+                headers={
+                    "X-API-Key":     _API_KEY,
+                    "User-Agent":    _UA,
+                    "X-Call-ID":     call_uuid,
+                    "X-Caller-ID":   phone[:50],
+                    "X-Lead-ID":     lead_id[:50],
+                    "X-Campaign-ID": campaign_id[:50],
+                    "X-List-ID":     list_id[:50],
+                },
+            )
+            with urlopen(req, timeout=5) as r:
+                r.read()
+            _log(f"AMD-IA audiosocket: registrado uuid={call_uuid}")
+        except Exception as e:
+            # No seteamos AMDSTATUS acá a propósito — si el registro falla,
+            # AudioSocket() (siguiente paso del dialplan) va a conectar
+            # igual pero el servidor va a rechazarlo por no tener pending
+            # (uuid sin registro), y la fase "result" de abajo va a
+            # devolver ERROR — un solo lugar decide el AMDSTATUS final.
+            _log(f"AMD-IA audiosocket register error: {e}")
+        return
+
+    # phase == "result"
+    try:
+        req = Request(
+            f"{_SERVER}/amd/audiosocket/result",
+            headers={"X-API-Key": _API_KEY, "User-Agent": _UA, "X-Call-ID": call_uuid},
+        )
+        with urlopen(req, timeout=5) as r:
+            d = json.loads(r.read())
+        status = d.get("status", "ERROR")
+        layer  = d.get("layer_used", 0)
+        ms     = d.get("latency_ms", 0)
+        _log(f"AMD-IA audiosocket: {status} layer={layer} {ms}ms")
+        _set("AMDSTATUS", status)
+        _set("AMDLAYER",  str(layer))
+        _set("AMDMS",     str(ms))
+    except Exception as e:
+        _log(f"AMD-IA audiosocket result error: {e}")
+        _set("AMDSTATUS", "ERROR")
+
+
 def main():
     env = {}
     while True:
@@ -345,6 +413,15 @@ def main():
         if ":" in line:
             k, v = line.strip().split(":", 1)
             env[k.strip()] = v.strip()
+
+    # Modo audiosocket: el dialplan pasa la fase como primer argumento del
+    # AGI (AGI(amd_ia.agi,register,${CALL_UUID}) / ...,result,${CALL_UUID}) —
+    # esto NUNCA pasa por _check_server()/auto-update ni por batch/stream,
+    # es un camino aparte y más corto.
+    _phase = env.get("agi_arg_1", "").strip().lower()
+    if _phase in ("register", "result"):
+        _run_audiosocket_phase(_phase, env.get("agi_arg_2", "").strip())
+        return
 
     uid         = env.get("agi_uniqueid", "unknown")
     cid         = env.get("agi_callerid", "unknown")

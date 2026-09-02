@@ -1,9 +1,10 @@
 import asyncio
 import hashlib
+import json
 import logging
 
 from fastapi import APIRouter, Header, UploadFile, File, HTTPException, Depends, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, JSONResponse
 
 from app.config import settings
 from app.api.deps import verify_client, verify_client_readonly
@@ -197,3 +198,77 @@ async def amd_update(
         content=script,
         headers={"Content-Disposition": "attachment; filename=amd_ia.agi"},
     )
+
+
+_AUDIOSOCKET_PENDING_TTL = 30  # ver app/core/audiosocket_server.py
+
+
+@router.post("/amd/audiosocket/register")
+async def amd_audiosocket_register(
+    call_id    : str = Header(default="", alias="X-Call-ID"),
+    caller_id  : str = Header(default="", alias="X-Caller-ID"),
+    lead_id    : str = Header(default="", alias="X-Lead-ID"),
+    campaign_id: str = Header(default="", alias="X-Campaign-ID"),
+    list_id    : str = Header(default="", alias="X-List-ID"),
+    client     : dict = Depends(verify_client_readonly),
+):
+    """
+    Paso previo obligatorio antes de que el dialplan invoque AudioSocket().
+    AudioSocket solo manda un UUID por conexión, sin headers ni query params
+    — no hay forma de mandar la API key en esa conexión. Este endpoint deja
+    en Redis qué cliente corresponde a ese call_id (que el dialplan reusa
+    como UUID de AudioSocket) para que app/core/audiosocket_server.py pueda
+    resolverlo cuando la conexión TCP llegue. No consume límite diario
+    (verify_client_readonly, mismo criterio que /amd/check).
+    """
+    if not call_id:
+        raise HTTPException(status_code=400, detail="X-Call-ID requerido — se reusa como UUID de AudioSocket")
+    try:
+        from app.cache.client_cache import get_redis
+        r = await get_redis()
+        await r.setex(
+            f"audiosocket:pending:{call_id}",
+            _AUDIOSOCKET_PENDING_TTL,
+            json.dumps({
+                "client":      client,
+                "call_id":     call_id[:100],
+                "caller_id":   caller_id[:50],
+                "lead_id":     lead_id[:50],
+                "campaign_id": campaign_id[:50],
+                "list_id":     list_id[:50],
+            }, default=str),
+        )
+    except Exception as e:
+        log.error("AudioSocket register: error guardando pending call_id=%s: %s", call_id, e)
+        raise HTTPException(status_code=503, detail="No se pudo registrar la llamada")
+    return {"ok": True, "audiosocket_port": settings.AUDIOSOCKET_PORT}
+
+
+@router.get("/amd/audiosocket/result")
+async def amd_audiosocket_result(
+    call_id: str = Header(default="", alias="X-Call-ID"),
+    client : dict = Depends(verify_client_readonly),
+):
+    """
+    El AGI llama esto DESPUÉS de que AudioSocket() retorna (la conexión ya
+    se cerró) para levantar el resultado que app/core/audiosocket_server.py
+    dejó en Redis. Mismo rol que la consulta al socket Unix local del
+    servidor de referencia que originó este modo, pero por HTTP — VoxiDet es
+    centralizado (un servidor atendiendo Asterisk de clientes distintos por
+    internet), no todo en la misma máquina.
+    """
+    if not call_id:
+        raise HTTPException(status_code=400, detail="X-Call-ID requerido")
+    try:
+        from app.cache.client_cache import get_redis
+        r = await get_redis()
+        raw = await r.get(f"audiosocket:result:{call_id}")
+    except Exception as e:
+        log.error("AudioSocket result: error leyendo call_id=%s: %s", call_id, e)
+        return JSONResponse(status_code=503, content={"status": "ERROR"})
+    if not raw:
+        # Puede pasar si la conexión AudioSocket nunca llegó a conectar
+        # (puerto bloqueado por firewall, IP mal configurada en el dialplan,
+        # etc.) — el AGI lo trata como ERROR y sigue el dialplan igual.
+        return {"status": "ERROR", "layer_used": 0, "latency_ms": 0, "transcript": ""}
+    return json.loads(raw)

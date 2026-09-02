@@ -199,10 +199,11 @@
            style="font-size:.72rem;">Historial</a>
         <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/amd-mode" style="display:inline;">
           <select name="mode" onchange="this.form.submit()"
-                  title="Batch: graba 2.5s y envía WAV (más estable) · Stream: EAGI en tiempo real (alta latencia bajo carga)"
-                  style="background:transparent; border:1px solid var(--border); border-radius:4px; font-size:.72rem; padding:.15rem .3rem; color:{{ 'var(--yellow)' if c.amd_mode == 'stream' else 'var(--text)' }};">
-            <option value="batch"  {% if c.amd_mode != 'stream' %}selected{% endif %}>Batch</option>
-            <option value="stream" {% if c.amd_mode == 'stream' %}selected{% endif %}>Stream</option>
+                  title="Batch: graba 2.5s y envía WAV (más estable) · Stream: EAGI en tiempo real (alta latencia bajo carga) · Audiosocket: transporte nativo de Asterisk, bidireccional (v1.27.0, requiere ajustar el dialplan a mano — ver documentación)"
+                  style="background:transparent; border:1px solid var(--border); border-radius:4px; font-size:.72rem; padding:.15rem .3rem; color:{{ 'var(--yellow)' if c.amd_mode == 'stream' else ('var(--signal)' if c.amd_mode == 'audiosocket' else 'var(--text)') }};">
+            <option value="batch"       {% if c.amd_mode == 'batch' or not c.amd_mode %}selected{% endif %}>Batch</option>
+            <option value="stream"      {% if c.amd_mode == 'stream' %}selected{% endif %}>Stream</option>
+            <option value="audiosocket" {% if c.amd_mode == 'audiosocket' %}selected{% endif %}>Audiosocket</option>
           </select>
         </form>
         <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/amd-bias" style="display:inline;">

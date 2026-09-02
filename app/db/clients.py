@@ -71,9 +71,24 @@ async def set_keywords_mode(client_id: int, mode: str) -> None:
     await _invalidate_by_id(client_id)
 
 
+async def ensure_amd_mode_audiosocket_width() -> None:
+    """Migración (v1.27.0): 'audiosocket' son 11 caracteres — no entra en el
+    VARCHAR(10) original de amd_mode (ensure_amd_mode_column), MySQL lo
+    trunca en silencio a 'audiosocke' y set_amd_mode() nunca lo iba a
+    reconocer de vuelta. Ancho con margen para no repetir esto si sale un
+    modo nuevo más largo."""
+    try:
+        async with get_db() as db:
+            await db.execute(text(
+                "ALTER TABLE clients MODIFY COLUMN amd_mode VARCHAR(20) NOT NULL DEFAULT 'batch'"
+            ))
+    except Exception:
+        pass
+
+
 async def set_amd_mode(client_id: int, mode: str) -> None:
-    """Fija explícitamente 'batch' o 'stream' (selector en el panel)."""
-    if mode not in ("batch", "stream"):
+    """Fija explícitamente 'batch', 'stream' o 'audiosocket' (selector en el panel)."""
+    if mode not in ("batch", "stream", "audiosocket"):
         return
     async with get_db() as db:
         await db.execute(

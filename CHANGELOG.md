@@ -7,6 +7,15 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.27.0 — 2026-08-05
+
+- Nuevo: modo de detección "Audiosocket" — una forma alternativa de conectar el servidor a la central
+  telefónica que soluciona el problema de llamadas que se quedaban en silencio durante el análisis.
+  **Requiere un ajuste manual en la configuración de cada central telefónica que quiera usarlo** (no es
+  automático como los modos existentes) — consultar antes de activarlo en un cliente real.
+
+---
+
 ## v1.26.13 — 2026-08-05
 
 - Corregido: la actualización automática del instalador (AGI) no estaba funcionando desde ayer por un
