@@ -465,7 +465,7 @@ async def _auth(ws: WebSocket, api_key: str) -> dict | None:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 async def _decide_and_send(
-    ws: WebSocket,
+    send_result,
     detector,
     session_id: str,
     t0: float,
@@ -475,7 +475,14 @@ async def _decide_and_send(
     extra_voicemail: set[str] | None = None,
     aggressive: bool = False,
 ) -> tuple[str, int, str]:
-    """Calcula resultado final: energía + transcripción según provider del cliente."""
+    """Calcula resultado final: energía + transcripción según provider del cliente.
+
+    send_result: callable async que recibe el dict {status, transcript,
+    latency_ms, layer} — antes esto mandaba directo por `ws.send_text()`
+    (acoplado a WebSocket); ahora el caller decide cómo entregarlo (WS,
+    guardarlo en Redis para AudioSocket, etc., ver app/core/audiosocket_server.py).
+    Pasar None si no hace falta entregar nada (solo se necesita el resultado
+    de retorno)."""
     energy_result = detector.on_silence() or "UNKNOWN"
     pcm = detector.audio_buffer()
     used_provider = provider or "groq"
@@ -539,15 +546,16 @@ async def _decide_and_send(
     log.info("[%s] → %s layer=%d transcript='%s' %dms",
              session_id, result, layer, transcript, latency_ms)
 
-    try:
-        await ws.send_text(json.dumps({
-            "status":     result,
-            "transcript": transcript,
-            "latency_ms": latency_ms,
-            "layer":      layer,
-        }))
-    except Exception:
-        pass
+    if send_result is not None:
+        try:
+            await send_result({
+                "status":     result,
+                "transcript": transcript,
+                "latency_ms": latency_ms,
+                "layer":      layer,
+            })
+        except Exception:
+            pass
 
     return result, layer, transcript
 
@@ -697,8 +705,11 @@ async def amd_stream(ws: WebSocket):
         elif vosk_stream:
             precomp     = vosk_stream.final()
             vosk_stream = None
+        async def _send(payload: dict) -> None:
+            await ws.send_text(json.dumps(payload))
+
         return await _decide_and_send(
-            ws, detector, session_id, t0, provider, precomp,
+            _send, detector, session_id, t0, provider, precomp,
             extra_human=ckw_human or None,
             extra_voicemail=ckw_voicemail or None,
             aggressive=client.get("amd_bias") == "aggressive",

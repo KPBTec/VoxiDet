@@ -44,6 +44,7 @@ from app.db.logs import (
     ensure_beep_detected_column,
     ensure_mode_transcript_columns,
     ensure_layer2_calls_column,
+    ensure_mode_audiosocket_enum,
 )
 from app.db.keywords import ensure_table as ensure_keywords_table
 from app.db.client_keywords import ensure_client_keywords_table
@@ -85,6 +86,7 @@ MIGRATIONS = [
     ("1.22.0", ensure_app_settings_table),
     ("1.23.0", ensure_audit_log_table),
     ("1.25.0", ensure_sites_table),
+    ("1.27.0", ensure_mode_audiosocket_enum),
 ]
 
 

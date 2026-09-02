@@ -101,6 +101,21 @@ async def ensure_mode_transcript_columns() -> None:
         pass
 
 
+async def ensure_mode_audiosocket_enum() -> None:
+    """Migración (v1.27.0): agrega 'audiosocket' al ENUM de mode — el nuevo
+    transporte AudioSocket guarda mode='audiosocket' en save_log(), y sin
+    ampliar el ENUM el INSERT falla/trunca (MySQL rechaza valores fuera del
+    ENUM declarado)."""
+    try:
+        async with get_db() as db:
+            await db.execute(text(
+                "ALTER TABLE voxidet_logs MODIFY COLUMN mode "
+                "ENUM('batch','stream','audiosocket') NOT NULL DEFAULT 'batch'"
+            ))
+    except Exception:
+        pass
+
+
 async def ensure_layer2_calls_column() -> None:
     """Migración: daily_usage.deepgram_calls quedó con nombre de un solo
     proveedor (era la única capa 2 cuando se creó la tabla) — ahora hay 5

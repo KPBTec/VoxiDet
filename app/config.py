@@ -62,6 +62,14 @@ class Settings(BaseSettings):
     LOG_LEVEL: str  = "info"
     PUBLIC_URL: str = "http://localhost:8000"
 
+    # Modo AudioSocket (v1.27.0) — puerto TCP crudo donde Asterisk conecta
+    # directo vía la aplicación de dialplan AudioSocket() (no HTTP, no pasa
+    # por Cloudflare). Sin TLS por ahora (decisión explícita del usuario, ver
+    # CHANGELOG v1.27.0) — el audio de la llamada viaja sin cifrar entre el
+    # Asterisk y este puerto, deuda técnica pendiente antes de usarlo con
+    # tráfico real sensible.
+    AUDIOSOCKET_PORT: int = 9099
+
     # Alertas proactivas (app/core/alerting.py) — opt-in, sin esto configurado
     # notify() es un no-op (mismo patrón que INSTALL_SHERPA_LARGE: no aparece
     # ni se usa por accidente si nadie lo configuró a propósito). Acepta

@@ -7,6 +7,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.26.13 — 2026-08-05
+
+- Corregido: la actualización automática del instalador (AGI) no estaba funcionando desde ayer por un
+  error interno. **Importante**: si algún servidor de telefonía no fue reinstalado manualmente en las
+  últimas 24 horas, hacerlo ahora — no se puede confiar en que se haya actualizado solo.
+
+---
+
 ## v1.26.12 — 2026-08-04
 
 - Corregido: el modo de detección en tiempo real (streaming) podía fallar por completo cuando un

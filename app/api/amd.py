@@ -178,8 +178,8 @@ async def amd_update(
     Usado por el auto-update del AGI cuando detecta versión desactualizada.
     No consume límite diario.
     """
-    from app.api.install import _resolve_server_url
-    server_url = await _resolve_server_url(request)
+    from app.api.install import resolve_server_url
+    server_url = await resolve_server_url(request)
     script = (TEMPLATE
         .replace("__SERVER__",  server_url)
         # client["api_key"] no existe — get_client_by_apikey() no selecciona
