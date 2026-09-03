@@ -7,6 +7,23 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.27.5 — 2026-09-03
+
+- Seguridad: se corrió una auditoría dedicada de vulnerabilidades conocidas (CVEs) contra bases de datos
+  públicas de seguridad y se actualizaron 3 componentes internos que tenían versiones con
+  vulnerabilidades ya corregidas disponibles, incluyendo una alcanzable desde el envío de audio. Sin
+  impacto conocido hasta ahora, corregido de forma preventiva.
+
+---
+
+## v1.27.4 — 2026-09-03
+
+- Mejorado: se optimizó la detección para responder más rápido bajo tráfico alto — se eliminaron
+  consultas internas innecesarias en el camino de decisión de cada llamada, incluyendo una que hacía
+  esperar la respuesta por un dato que solo se usa para estadísticas internas.
+
+---
+
 ## v1.27.3 — 2026-09-03
 
 - Mejorado: se aumentó el margen de conexiones simultáneas que soporta el modo "Audiosocket", pensado

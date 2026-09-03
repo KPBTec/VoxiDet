@@ -215,6 +215,10 @@ async def update_vad_engine(request: Request, engine: str = Form(...)):
     if engine not in ("stream", "silero"):
         return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/providers", status_code=302)
     await set_vad_engine(engine)
+    # Actualiza la caché de proceso de ESTE worker al instante — los otros 10
+    # la ven al siguiente ciclo de start_vad_engine_cache() (cada 60s).
+    from app.api.stream import refresh_vad_engine_cache
+    refresh_vad_engine_cache(engine)
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/providers?saved=1", status_code=302)
 
 

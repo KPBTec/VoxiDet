@@ -13,6 +13,7 @@ guardadas en esta tabla usan id = KEY_ID_OFFSET + id_real_de_fila, para que
 nunca choquen con los índices legacy (nadie va a tener 100.000 keys).
 """
 import json
+import time
 
 from sqlalchemy import text
 from app.db.engine import get_db
@@ -23,12 +24,31 @@ KEY_ID_OFFSET = 100_000
 
 _ACTIVE_KEYS_CACHE_PREFIX = "amd:active_keys:"
 
+# Caché de PROCESO encima del caché de Redis (setex de 300s de abajo): get_active_keys()
+# se llama hasta 5x por detección (una por proveedor intentado en el fallback), en los
+# 3 modos de transporte — sin esto, cada uno de esos intentos es un round-trip de red a
+# Redis por más que el valor casi nunca cambie. La invalidación de este dict es solo
+# local al worker que hizo el cambio (ver _invalidate_active_keys_cache) — los otros 10
+# workers quedan con el valor viejo hasta que expira este TTL.
+#
+# TTL deliberadamente CORTO (no 300s como Redis, y más corto que el de
+# provider:model — ver providers.py): esto cachea CREDENCIALES en texto plano, no un
+# nombre de modelo. Encontrado en auditoría de seguridad pre-release: si un admin
+# desactiva una key porque se filtró/se detectó abuso, los workers que ya la tenían en
+# este caché seguirían usándola para llamadas salientes reales y facturadas a un
+# proveedor externo hasta que expire. 5s acota esa ventana a algo razonable para un caso
+# de revocación de emergencia, sin perder el ahorro real (los 5 intentos de fallback de
+# una misma detección ocurren en milisegundos, muy por debajo de este TTL).
+_ACTIVE_KEYS_PROCESS_TTL = 5
+_active_keys_process_cache: dict[str, tuple[float, list[dict]]] = {}
+
 
 async def _invalidate_active_keys_cache(provider: str) -> None:
     """get_active_keys() se llama hasta 5x por detección (una por proveedor
     intentado en el fallback) sin caché — cachear evita pegarle a MySQL +
     desencriptar Fernet en cada request, pero necesita invalidarse en
     cualquier mutación que cambie qué keys están activas."""
+    _active_keys_process_cache.pop(provider, None)
     try:
         from app.cache.client_cache import get_redis
         r = await get_redis()
@@ -175,8 +195,21 @@ async def get_key_model(db_id: int) -> str:
 
 
 async def get_active_keys(provider: str) -> list[dict]:
-    """Fuente única para la rotación real (amd_engine.py, stream.py):
-    legacy .env (id = índice 0,1,2..., salteando las desactivadas desde el
+    """Fuente única para la rotación real (amd_engine.py, stream.py) — ver
+    _get_active_keys_from_redis_or_db() para el detalle. Envuelve esa función
+    con un caché de proceso corto (ver _active_keys_process_cache arriba) para
+    no pagar ni siquiera el round-trip a Redis en cada uno de los hasta 5
+    intentos por detección."""
+    cached = _active_keys_process_cache.get(provider)
+    if cached is not None and (time.monotonic() - cached[0]) < _ACTIVE_KEYS_PROCESS_TTL:
+        return cached[1]
+    out = await _get_active_keys_from_redis_or_db(provider)
+    _active_keys_process_cache[provider] = (time.monotonic(), out)
+    return out
+
+
+async def _get_active_keys_from_redis_or_db(provider: str) -> list[dict]:
+    """legacy .env (id = índice 0,1,2..., salteando las desactivadas desde el
     panel — v1.16.1, provider_legacy_disabled) + DB (id = KEY_ID_OFFSET + fila,
     solo active=1, descifradas en memoria acá mismo).
     Devuelve [{id, key}] — 'key' es texto plano: usar solo en memoria, jamás

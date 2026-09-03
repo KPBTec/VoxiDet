@@ -88,8 +88,9 @@ async def lifespan(app: FastAPI):
     await load_all_models_to_cache()
     await keyword_cache.start()
     await usage_sync.start()
-    from app.api.stream import _log_groq_keys
+    from app.api.stream import _log_groq_keys, start_vad_engine_cache
     await _log_groq_keys()
+    await start_vad_engine_cache()
     audiosocket_server = await start_audiosocket_server(_audiosocket_sock) if _audiosocket_sock is not None else None
     yield
     if audiosocket_server is not None:

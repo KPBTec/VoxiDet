@@ -2,7 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /srv
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# upgrade -y antes de instalar: python:3.11-slim es un tag flotante, los
+# paquetes de sistema ya horneados en la imagen base no se actualizan solos
+# — sin esto, un CVE de Debian parcheado después de la última vez que se
+# publicó esa imagen base queda sin corregir en cada build nuevo.
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libsndfile1 \
     ffmpeg \
     libgomp1 \

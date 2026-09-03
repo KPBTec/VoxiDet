@@ -226,7 +226,7 @@ async def _handle_connection(reader: asyncio.StreamReader, writer: asyncio.Strea
 
     from app.core.silero_vad import make_detector
     from app.db.providers import get_vad_engine
-    from app.api.stream import _decide_and_send
+    from app.api.stream import _decide_and_send, get_cached_vad_engine
     from app.db.logs import save_log
     from app.db.client_keywords import get_cached_client_keywords
 
@@ -246,7 +246,10 @@ async def _handle_connection(reader: asyncio.StreamReader, writer: asyncio.Strea
     stop_silence = asyncio.Event()
     sil_task = asyncio.create_task(_silence_loop(writer, stop_silence))
 
-    vad_engine = await get_vad_engine()
+    # Reusa la misma caché de proceso que app/api/stream.py (start_vad_engine_cache
+    # en main.py) en vez de pegarle a Redis en cada conexión — antes esta caché
+    # existía pero nunca se llenaba (bug encontrado en auditoría de optimización).
+    vad_engine = get_cached_vad_engine() or await get_vad_engine()
     detector = make_detector(vad_engine)
 
     result, layer, transcript = "UNKNOWN", 1, ""

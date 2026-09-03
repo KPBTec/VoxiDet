@@ -1,4 +1,5 @@
 import json
+import time
 from sqlalchemy import text
 from app.config import settings
 from app.db.engine import get_db
@@ -152,6 +153,13 @@ async def _get_redis():
 
 
 async def _cache_set(key: str, value: str) -> None:
+    # El modelo/keymodel de un proveedor solo cambia por acción de un admin
+    # en el panel — nukear el caché de proceso completo acá (barato, dict
+    # chico) es más simple que llevar la cuenta de qué (provider, key_idx)
+    # puntual quedó afectado, y sigue siendo mucho menos frecuente que las
+    # lecturas que ese caché evita (ver get_provider_model).
+    if key.startswith("provider:model:") or key.startswith("provider:keymodel:"):
+        _provider_model_process_cache.clear()
     try:
         r = await _get_redis()
         await r.set(key, value)
@@ -218,9 +226,28 @@ async def set_vad_engine(engine: str) -> None:
     await _cache_set(_VAD_REDIS_KEY, engine)
 
 
+_PROVIDER_MODEL_PROCESS_TTL = 15
+_provider_model_process_cache: dict[tuple[str, int | None], tuple[float, str]] = {}
+
+
 async def get_provider_model(provider: str, key_idx: int | None = None) -> str:
     """Obtiene el modelo para un proveedor, opcionalmente por índice de key.
-    Redis → DB → default. Sin esperas en el camino caliente."""
+    Caché de proceso (TTL corto) → Redis → DB → default. Se llama por cada
+    intento de cada proveedor en el fallback (hasta 5x por detección, en los
+    3 modos de transporte) — un valor que casi nunca cambia no amerita un
+    round-trip de red en cada uno de esos intentos. Invalidado en _cache_set()
+    apenas un admin cambia el modelo desde el panel."""
+    cache_key = (provider, key_idx)
+    cached = _provider_model_process_cache.get(cache_key)
+    if cached is not None and (time.monotonic() - cached[0]) < _PROVIDER_MODEL_PROCESS_TTL:
+        return cached[1]
+    model = await _get_provider_model_uncached(provider, key_idx)
+    _provider_model_process_cache[cache_key] = (time.monotonic(), model)
+    return model
+
+
+async def _get_provider_model_uncached(provider: str, key_idx: int | None = None) -> str:
+    """Redis → DB → default. Sin esperas en el camino caliente."""
     if key_idx is not None:
         val = await _cache_get(f"provider:keymodel:{provider}:{key_idx}")
         if val:

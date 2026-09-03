@@ -54,6 +54,23 @@ def _log_task_exception(task: asyncio.Task) -> None:
     if exc:
         log.error("Tarea de background falló: %s", exc, exc_info=exc)
 
+
+# asyncio.create_task() NO retiene una referencia fuerte al Task devuelto —
+# la doc oficial de asyncio advierte que sin guardar esa referencia en algún
+# lado, el GC de CPython puede recolectar la tarea a mitad de ejecución
+# (encontrado en la auditoría de seguridad previa al release: _record_provider_stat
+# y start_vad_engine_cache creaban tasks "sueltas", sin asignar a ninguna
+# variable ni colección). Este set las mantiene vivas hasta que terminan.
+_bg_tasks: set[asyncio.Task] = set()
+
+
+def _spawn_bg_task(coro) -> asyncio.Task:
+    task = asyncio.create_task(coro)
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
+    task.add_done_callback(_log_task_exception)
+    return task
+
 # Cache en memoria para evitar query DB/Redis en cada conexión WebSocket
 _cached_vad_engine: str | None = None
 
@@ -61,6 +78,37 @@ _cached_vad_engine: str | None = None
 def refresh_vad_engine_cache(engine: str) -> None:
     global _cached_vad_engine
     _cached_vad_engine = engine
+
+
+def get_cached_vad_engine() -> str | None:
+    """Getter (no importar _cached_vad_engine directo desde otro módulo — un
+    `from app.api.stream import _cached_vad_engine` capturaría el valor de
+    import-time, que queda pegado en None para siempre y nunca ve las
+    actualizaciones de refresh_vad_engine_cache())."""
+    return _cached_vad_engine
+
+
+async def _vad_engine_cache_loop() -> None:
+    while True:
+        await asyncio.sleep(60)
+        try:
+            refresh_vad_engine_cache(await _get_vad_engine())
+        except Exception:
+            pass
+
+
+async def start_vad_engine_cache() -> None:
+    """Popula _cached_vad_engine al arrancar y la refresca cada 60s en
+    background (mismo patrón que app/core/keyword_cache.py). Antes esta
+    caché estaba declarada con el comentario de "evitar query en cada
+    conexión" pero refresh_vad_engine_cache() nunca se llamaba desde ningún
+    lado — quedaba en None para siempre y el 100% de las conexiones
+    stream/audiosocket pagaban el round-trip a Redis que esto decía evitar."""
+    try:
+        refresh_vad_engine_cache(await _get_vad_engine())
+    except Exception as e:
+        log.warning("No se pudo precargar vad_engine al arrancar: %s", e)
+    _spawn_bg_task(_vad_engine_cache_loop())
 
 
 # ── Groq transcripción ────────────────────────────────────────────────────────
@@ -88,14 +136,12 @@ async def _get_openai_keys() -> list[dict]:
     return await get_active_keys("openai")
 
 def _build_groq_prompt() -> str:
-    """
-    initial_prompt para Whisper — lista de palabras esperadas separadas por coma.
-    Whisper las usa para sesgar el vocabulario hacia esas palabras sin restricción dura.
-    Se construye en tiempo real desde el keyword_cache (DB) para ser siempre actual.
-    """
+    """initial_prompt para Whisper — lista de palabras esperadas separadas por
+    coma. Precalculado en keyword_cache.py (refrescado junto con las keywords
+    cada 60s) en vez de rehacer el sorted()+join() en cada request HTTP
+    saliente a cada uno de los 4 proveedores que lo usan."""
     from app.core import keyword_cache
-    words = sorted(keyword_cache.get_human() | keyword_cache.get_voicemail())
-    return ", ".join(words) + "."
+    return keyword_cache.get_prompt()
 
 
 async def _log_groq_keys() -> None:
@@ -513,23 +559,33 @@ async def _decide_and_send(
         else:
             transcript = ""
 
-    # Registrar estadística del proveedor que realmente respondió
+    # Registrar estadística del proveedor que realmente respondió — corre
+    # TODO en background (incluido el fetch de keys para _key_idx), no antes
+    # de enviar el resultado. Antes este bloque hacía `await _get_*_keys()`
+    # (un round-trip evitable, solo para telemetría) ANTES de send_result()
+    # más abajo — la llamada real a Asterisk/EAGI esperaba un fetch de Redis
+    # que no tenía ningún efecto sobre HUMAN/VOICEMAIL/UNKNOWN.
     _audio_ms = len(pcm) * 1000 // 16000
-    _key_idx: int = 0
-    _stat_keys: list[dict] = []
-    if used_provider == "groq":
-        _stat_keys = await _get_groq_keys()
-    elif used_provider in ("deepgram", "deepgramv2"):
-        _stat_keys = await _get_deepgram_keys()
-    elif used_provider == "fireworks":
-        _stat_keys = await _get_fireworks_keys()
-    elif used_provider == "together":
-        _stat_keys = await _get_together_keys()
-    elif used_provider == "openai":
-        _stat_keys = await _get_openai_keys()
-    if _stat_keys:
-        _key_idx = _stat_keys[_pick_key_index(session_id, _stat_keys)]["id"]
-    asyncio.create_task(_record_stat(used_provider, _key_idx, _audio_ms, error=not bool(transcript)))
+    _had_transcript = bool(transcript)
+
+    async def _record_provider_stat() -> None:
+        _key_idx: int = 0
+        _stat_keys: list[dict] = []
+        if used_provider == "groq":
+            _stat_keys = await _get_groq_keys()
+        elif used_provider in ("deepgram", "deepgramv2"):
+            _stat_keys = await _get_deepgram_keys()
+        elif used_provider == "fireworks":
+            _stat_keys = await _get_fireworks_keys()
+        elif used_provider == "together":
+            _stat_keys = await _get_together_keys()
+        elif used_provider == "openai":
+            _stat_keys = await _get_openai_keys()
+        if _stat_keys:
+            _key_idx = _stat_keys[_pick_key_index(session_id, _stat_keys)]["id"]
+        await _record_stat(used_provider, _key_idx, _audio_ms, error=not _had_transcript)
+
+    _spawn_bg_task(_record_provider_stat())
 
     if transcript:
         log.info("[%s] [%s] transcript: '%s'", session_id, provider, transcript)

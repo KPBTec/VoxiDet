@@ -1,20 +1,21 @@
-fastapi>=0.120,<0.140   # CVE-2026-48710 "BadHost"
+fastapi>=0.120,<0.140   # CVE-2026-48710 "BadHost" (el bug real es de Starlette, ver pin explícito abajo)
+starlette>=1.0.1        # CVE-2026-48710 "BadHost" (auth bypass vía Host header) — antes solo mitigado implícito por el rango de fastapi, sin techo, contra un índice de paquetes "en vivo"; pineado explícito para no depender de eso
 vosk==0.3.45
 sherpa-onnx==1.13.4
 onnxruntime==1.18.1
 uvicorn[standard]==0.29.0
 gunicorn==22.0.0
 sqlalchemy[asyncio]==2.0.30
-aiomysql==0.2.0
+aiomysql>=0.3.0         # CVE-2025-62611 (servidor MySQL malicioso puede leer archivos del cliente pese a local_infile=0) — 0.2.0 estaba afectado
 redis[asyncio]==5.0.4
 httpx==0.27.0
 numpy==1.26.4
 requests==2.31.0
-python-multipart==0.0.9
+python-multipart>=0.0.26  # CVE-2024-53981 (CVSS 7.5, DoS) + CVE-2026-40347 — alcanzable desde POST /amd (UploadFile), 0.0.9 estaba afectado por ambas
 pydantic-settings==2.2.1
-jinja2>=3.1.5           # CVE-2024-56326 / CVE-2024-56201 RCE via sandbox bypass
+jinja2>=3.1.6           # CVE-2024-56326 / CVE-2024-56201 (RCE sandbox bypass) + CVE-2025-27516 (bypass vía filtro |attr) — las 3 corregidas en 3.1.6+
 itsdangerous==2.1.2
-cryptography==42.0.8
+cryptography>=48.0.1    # CVE-2026-34180 (OpenSSL embebido vulnerable a lote de CVEs de jun-2026) + CVE-2026-26007 (subgrupo SECT) — 42.0.8 estaba afectado
 psutil==6.0.0
 bcrypt>=4.0
 cachetools==5.3.3
