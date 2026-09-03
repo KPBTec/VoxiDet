@@ -7,6 +7,13 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.27.3 — 2026-09-03
+
+- Mejorado: se aumentó el margen de conexiones simultáneas que soporta el modo "Audiosocket", pensado
+  para marcadores con volumen alto de llamadas constantes.
+
+---
+
 ## v1.27.2 — 2026-09-03
 
 - Corregido: antes de activar el modo "Audiosocket" en clientes reales se hizo una revisión completa de

@@ -305,6 +305,17 @@ AMD_BEEP_FREQ_HZ=1000
 # de detección). true para que deploy.sh lo descargue.
 INSTALL_SHERPA_LARGE=$INSTALL_SHERPA_LARGE
 
+# Modo Audiosocket (v1.27.0+) — puerto TCP crudo, sin TLS. Default 9099 si
+# se deja vacío/comentado. Cambiar solo si ese puerto ya está en uso.
+# AUDIOSOCKET_PORT=9099
+
+# Techo de conexiones concurrentes AudioSocket POR WORKER (default 1000 si se
+# deja vacío/comentado; son 11 workers -> techo real ~11x esto). Es un techo
+# de emergencia contra un flood sostenido, no la protección principal (esa es
+# el timeout de 8s por conexión, siempre activo). Subir solo si el log avisa
+# "límite de N conexiones concurrentes alcanzado" con tráfico real, no antes.
+# AUDIOSOCKET_MAX_CONNECTIONS=1000
+
 # ── Autotuneo de recursos (NO editar a mano) ─────────────────────────────────
 # deploy.sh calcula estos valores en cada corrida según CPU/RAM reales del
 # host — se sobrescriben solos, dejarlos vacíos.

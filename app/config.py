@@ -71,15 +71,26 @@ class Settings(BaseSettings):
     AUDIOSOCKET_PORT: int = 9099
 
     # Límite de conexiones concurrentes ACEPTADAS por worker en el puerto
-    # AudioSocket. A diferencia del puerto HTTP (Cloudflare + verify_client
-    # con allow-list de IP + límite diario), este puerto TCP crudo no tiene
-    # ninguna capa intermedia — sin este techo, una conexión sin UUID válido
-    # (o que deja de mandar datos a mitad de llamada) queda abierta
-    # consumiendo un file descriptor y una Task por tiempo indefinido, y
-    # nada impide abrir tantas como el atacante quiera. `sock.listen(256)`
-    # en create_listening_socket() NO cumple este rol — eso solo acota la
-    # cola de accept() del kernel, no las conexiones ya aceptadas y en curso.
-    AUDIOSOCKET_MAX_CONNECTIONS: int = 200
+    # AudioSocket (son 11 workers -> techo real de la plataforma ~11x esto).
+    # A diferencia del puerto HTTP (Cloudflare + verify_client con allow-list
+    # de IP + límite diario), este puerto TCP crudo no tiene ninguna capa
+    # intermedia. `sock.listen(256)` en create_listening_socket() NO cumple
+    # este rol — eso solo acota la cola de accept() del kernel, no las
+    # conexiones ya aceptadas y en curso.
+    #
+    # La defensa PRINCIPAL contra un flood ya es el timeout de _read_packet()
+    # (cada conexión se corta sola a los MAX_SECS=8.0 como máximo, sin
+    # excepción) — este número es un techo de emergencia para un ataque
+    # sostenido, no la barrera contra tráfico real de un marcador. Sizing:
+    # una conexión AudioSocket vive como máximo 8s (normalmente <1s, el 70%
+    # se resuelve casi al instante con la capa de energía); incluso un
+    # marcador agresivo con decenas de originaciones/seg en simultáneo entre
+    # todos los clientes queda muy por debajo de este valor. Configurable sin
+    # tocar código vía AUDIOSOCKET_MAX_CONNECTIONS en credentials.conf si el
+    # tráfico real de algún cliente lo justifica — el log avisa explícito
+    # ("límite de N conexiones concurrentes alcanzado") si algún día se
+    # llegara a pisar el techo.
+    AUDIOSOCKET_MAX_CONNECTIONS: int = 1000
 
     # Alertas proactivas (app/core/alerting.py) — opt-in, sin esto configurado
     # notify() es un no-op (mismo patrón que INSTALL_SHERPA_LARGE: no aparece
