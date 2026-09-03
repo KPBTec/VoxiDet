@@ -386,7 +386,7 @@ function openEdit(btn) {
     let host = 'TU-SERVIDOR';
     try { host = new URL(installUrl).hostname; } catch (e) {}
     _dialplanText =
-      'same => n,Set(CALL_UUID=${STRIP(${SHELL(cat /proc/sys/kernel/random/uuid)})})\n' +
+      'same => n,Set(CALL_UUID=${SHELL(cat /proc/sys/kernel/random/uuid | head -c 36)})\n' +
       'same => n,AGI(amd_ia.agi,register,${CALL_UUID})\n' +
       'same => n,AudioSocket(${CALL_UUID},' + host + ':' + AUDIOSOCKET_PORT + ')\n' +
       'same => n,AGI(amd_ia.agi,result,${CALL_UUID})';
