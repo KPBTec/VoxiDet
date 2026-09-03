@@ -347,7 +347,7 @@ footer { background: #0e0a06; color: var(--muted); padding: 48px 32px 32px; text
       <div class="hero-buttons">
         <a href="https://github.com/KPBTec/VoxiDet/archive/refs/heads/main.zip" class="btn btn-primary" target="_blank">
           <svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-          Descargar v1.22.2
+          Descargar v1.27.2
         </a>
         <a href="https://github.com/KPBTec/VoxiDet" class="btn btn-outline" target="_blank">
           <svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.016-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.605-2.665-.303-5.467-1.332-5.467-5.93 0-1.31.469-2.38 1.235-3.22-.124-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.3 1.23A11.5 11.5 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.29-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.873.118 3.176.77.84 1.233 1.91 1.233 3.22 0 4.61-2.807 5.624-5.48 5.92.43.372.823 1.102.823 2.222 0 1.604-.015 2.896-.015 3.286 0 .32.216.694.825.576C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -357,7 +357,7 @@ footer { background: #0e0a06; color: var(--muted); padding: 48px 32px 32px; text
       <div class="hero-stats">
         <div class="hero-stat"><div class="num mono">2 capas</div><div class="lbl">Energía + transcripción real</div></div>
         <div class="hero-stat"><div class="num mono">7</div><div class="lbl">Proveedores ASR con fallback</div></div>
-        <div class="hero-stat"><div class="num mono">v1.22.2</div><div class="lbl">Versión actual</div></div>
+        <div class="hero-stat"><div class="num mono">v1.27.2</div><div class="lbl">Versión actual</div></div>
       </div>
     </div>
 
@@ -557,7 +557,28 @@ footer { background: #0e0a06; color: var(--muted); padding: 48px 32px 32px; text
 
       <details class="release-card" open>
         <summary class="release-header">
-          <span class="release-tag latest mono">v1.22.0–v1.22.2 latest</span>
+          <span class="release-tag latest mono">v1.23.0–v1.27.2 latest</span>
+          <span class="release-title">Modo Audiosocket (arregla llamadas mudas), sedes, alertas, CSV, hardening del panel</span>
+          <span class="release-date mono">2026-09-03</span>
+          <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="release-body">
+          <ul>
+            <li>Nuevo modo de detección "Audiosocket" — transporte bidireccional con la central telefónica que soluciona las llamadas que quedaban en silencio durante el análisis (requiere un ajuste manual por central, revisado y reforzado en v1.27.1/v1.27.2 tras una auditoría de seguridad y estabilidad)</li>
+            <li>Nuevo: agrupar clientes por sede/sucursal, con filtro en Reportes y Detecciones</li>
+            <li>Nuevo: alertas automáticas por webhook cuando un proveedor falla repetidamente o un cliente supera su límite diario</li>
+            <li>Nuevo: exportar reportes a CSV (diario y mensual), con variación (▲/▼) contra el período anterior</li>
+            <li>Nuevo: historial de cambios por cliente (quién y cuándo modificó límite, IPs, proveedor, credenciales)</li>
+            <li>Mejorado: mayor resiliencia de transcripción (fallback entre proveedores más consistente en batch y streaming, circuit breaker ante fallas repetidas) y más protecciones de seguridad en el canal de detección en tiempo real</li>
+            <li>Corregido: actualización automática del instalador (AGI) que había quedado rota, bloqueo por Cloudflare del instalador, falla silenciosa de un proveedor de transcripción local, y varios ajustes visuales para alinear el panel con el resto de las plataformas KPBTec</li>
+            <li>Detalle línea por línea de cada versión (v1.22.3 a v1.27.2) en <a href="https://github.com/KPBTec/VoxiDet/blob/main/CHANGELOG.md">CHANGELOG.md</a></li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="release-card">
+        <summary class="release-header">
+          <span class="release-tag mono">v1.22.0–v1.22.5</span>
           <span class="release-title">Dashboard, logs de backend desde el panel, dominio editable, landing renovada</span>
           <span class="release-date mono">2026-08-03</span>
           <svg class="release-chevron ico" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>

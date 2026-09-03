@@ -70,6 +70,17 @@ class Settings(BaseSettings):
     # tráfico real sensible.
     AUDIOSOCKET_PORT: int = 9099
 
+    # Límite de conexiones concurrentes ACEPTADAS por worker en el puerto
+    # AudioSocket. A diferencia del puerto HTTP (Cloudflare + verify_client
+    # con allow-list de IP + límite diario), este puerto TCP crudo no tiene
+    # ninguna capa intermedia — sin este techo, una conexión sin UUID válido
+    # (o que deja de mandar datos a mitad de llamada) queda abierta
+    # consumiendo un file descriptor y una Task por tiempo indefinido, y
+    # nada impide abrir tantas como el atacante quiera. `sock.listen(256)`
+    # en create_listening_socket() NO cumple este rol — eso solo acota la
+    # cola de accept() del kernel, no las conexiones ya aceptadas y en curso.
+    AUDIOSOCKET_MAX_CONNECTIONS: int = 200
+
     # Alertas proactivas (app/core/alerting.py) — opt-in, sin esto configurado
     # notify() es un no-op (mismo patrón que INSTALL_SHERPA_LARGE: no aparece
     # ni se usa por accidente si nadie lo configuró a propósito). Acepta

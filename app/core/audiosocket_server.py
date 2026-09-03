@@ -69,6 +69,7 @@ PKT_UUID   = 0x01
 PKT_AUDIO  = 0x10
 
 MAX_SECS       = 8.0   # mismo límite duro que el modo stream por WebSocket
+FIRST_PKT_SECS = 5.0   # timeout del primer paquete (UUID), antes de cualquier auth
 SILENCE_FRAME  = bytes([PKT_AUDIO, 0x01, 0x40]) + b"\x00" * 320  # 320B = 20ms slin16 @ 8kHz
 SILENCE_PERIOD = 0.02
 
@@ -96,18 +97,24 @@ def _parse_uuid(payload: bytes) -> str | None:
     return str(uuid_mod.UUID(bytes=payload))
 
 
-async def _read_packet(reader: asyncio.StreamReader) -> tuple[int | None, bytes]:
+async def _read_packet(reader: asyncio.StreamReader, timeout: float) -> tuple[int | None, bytes]:
+    """timeout es OBLIGATORIO: sin esto, un peer que deja de mandar datos a
+    mitad de conexión (o que ni siquiera manda el primer paquete) deja la
+    tarea bloqueada en readexactly() para siempre — cada una con su propio
+    _silence_loop escribiendo cada 20ms sin parar nunca. Un timeout vencido
+    se trata igual que una desconexión (pkt_type=None), mismo camino que ya
+    maneja el resto del código."""
     try:
-        header = await reader.readexactly(3)
-    except (asyncio.IncompleteReadError, ConnectionResetError, OSError):
+        header = await asyncio.wait_for(reader.readexactly(3), timeout=timeout)
+    except (asyncio.IncompleteReadError, ConnectionResetError, OSError, asyncio.TimeoutError):
         return None, b""
     pkt_type = header[0]
     pkt_len  = struct.unpack(">H", header[1:3])[0]
     if pkt_len == 0:
         return pkt_type, b""
     try:
-        payload = await reader.readexactly(pkt_len)
-    except (asyncio.IncompleteReadError, ConnectionResetError, OSError):
+        payload = await asyncio.wait_for(reader.readexactly(pkt_len), timeout=timeout)
+    except (asyncio.IncompleteReadError, ConnectionResetError, OSError, asyncio.TimeoutError):
         return None, b""
     return pkt_type, payload
 
@@ -136,10 +143,13 @@ async def _resolve_pending(call_uuid: str) -> dict | None:
         from app.cache.client_cache import get_redis
         r = await get_redis()
         key = f"audiosocket:pending:{call_uuid}"
-        raw = await r.get(key)
+        # getdel (no get+delete separados) para que el consumo sea atómico:
+        # dos conexiones casi simultáneas con el mismo UUID no pueden
+        # "autenticarse" ambas leyendo el mismo valor antes de que cualquiera
+        # borre la clave.
+        raw = await r.getdel(key)
         if not raw:
             return None
-        await r.delete(key)
         return json.loads(raw)
     except Exception as e:
         log.warning("AudioSocket: error resolviendo pending uuid=%s: %s", call_uuid, e)
@@ -155,7 +165,33 @@ async def _store_result(call_uuid: str, payload: dict) -> None:
         log.warning("AudioSocket: error guardando resultado uuid=%s: %s", call_uuid, e)
 
 
+_active_connections = 0
+
+
 async def handle_connection(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    """Wrapper delgado: aplica el techo de conexiones concurrentes ANTES de
+    entrar a _handle_connection (que recién autentica dentro), porque el
+    ataque a mitigar es justamente "abrir muchas conexiones sin nunca mandar
+    el UUID" — el rechazo tiene que pasar antes de cualquier lectura."""
+    global _active_connections
+    if _active_connections >= settings.AUDIOSOCKET_MAX_CONNECTIONS:
+        log.warning(
+            "AudioSocket: límite de %d conexiones concurrentes alcanzado, rechazando %s",
+            settings.AUDIOSOCKET_MAX_CONNECTIONS, writer.get_extra_info("peername"),
+        )
+        try:
+            writer.close()
+        except Exception:
+            pass
+        return
+    _active_connections += 1
+    try:
+        await _handle_connection(reader, writer)
+    finally:
+        _active_connections -= 1
+
+
+async def _handle_connection(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     # Los imports pesados (numpy vía silero_vad, DB, etc.) van DESPUÉS de
     # confirmar que la conexión tiene un registro válido — antes vivían acá
     # arriba y corrían en TODAS las conexiones, incluidas las que se iban a
@@ -166,7 +202,7 @@ async def handle_connection(reader: asyncio.StreamReader, writer: asyncio.Stream
     call_uuid: str | None = None
     t0 = time.monotonic()
 
-    pkt_type, payload = await _read_packet(reader)
+    pkt_type, payload = await _read_packet(reader, timeout=FIRST_PKT_SECS)
     if pkt_type != PKT_UUID:
         log.warning("AudioSocket: primer paquete no es UUID (tipo=%s) desde %s", pkt_type, peer)
         writer.close()
@@ -231,7 +267,7 @@ async def handle_connection(reader: asyncio.StreamReader, writer: asyncio.Stream
                 result, layer, transcript = await _do_decide()
                 break
 
-            pkt_type, chunk = await _read_packet(reader)
+            pkt_type, chunk = await _read_packet(reader, timeout=MAX_SECS - elapsed)
 
             if pkt_type is None:
                 log.info("[%s] EOF/desconexión audio=%dB", session_id, audio_bytes)

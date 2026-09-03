@@ -7,7 +7,16 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
-## v1.27.1 — 2026-08-05
+## v1.27.2 — 2026-09-03
+
+- Corregido: antes de activar el modo "Audiosocket" en clientes reales se hizo una revisión completa de
+  seguridad y estabilidad, que encontró y corrigió 3 puntos donde una conexión mal formada podía quedar
+  colgada indefinidamente o abrir demasiadas conexiones a la vez. Ya corregido — el modo Audiosocket es
+  seguro de activar.
+
+---
+
+## v1.27.1 — 2026-09-03
 
 - Mejorado: el puerto y el firewall que necesita el modo "Audiosocket" ahora se configuran solos al
   actualizar el servidor — antes había que hacerlo a mano.
@@ -17,7 +26,7 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
-## v1.27.0 — 2026-08-05
+## v1.27.0 — 2026-09-03
 
 - Nuevo: modo de detección "Audiosocket" — una forma alternativa de conectar el servidor a la central
   telefónica que soluciona el problema de llamadas que se quedaban en silencio durante el análisis.
@@ -26,7 +35,7 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 
 ---
 
-## v1.26.13 — 2026-08-05
+## v1.26.13 — 2026-09-03
 
 - Corregido: la actualización automática del instalador (AGI) no estaba funcionando desde ayer por un
   error interno. **Importante**: si algún servidor de telefonía no fue reinstalado manualmente en las

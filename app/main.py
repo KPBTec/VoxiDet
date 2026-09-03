@@ -64,7 +64,21 @@ if _models["silero"]:
 # bindear el puerto por su cuenta en lifespan() (que corre DESPUÉS del fork,
 # dentro de cada worker), solo el primero lo conseguiría — "Address already
 # in use" en los otros 10.
-_audiosocket_sock = create_listening_socket()
+# Envuelto en try/except a propósito: este bind corre en el proceso padre de
+# gunicorn --preload, junto con la carga de los modelos ASR de arriba — un
+# OSError sin atrapar acá (puerto ya ocupado, AUDIOSOCKET_PORT mal configurado
+# chocando con otro puerto del mismo proceso, etc.) tumbaría el import de todo
+# app.main y con eso el arranque de gunicorn completo, afectando también los
+# modos batch/stream que no dependen de AudioSocket para nada.
+_audiosocket_sock = None
+try:
+    _audiosocket_sock = create_listening_socket()
+except OSError as e:
+    log.error(
+        "AudioSocket: no se pudo bindear 0.0.0.0:%d (%s) — el modo AudioSocket "
+        "queda deshabilitado en este proceso; batch y stream siguen funcionando normalmente.",
+        settings.AUDIOSOCKET_PORT, e,
+    )
 
 
 @asynccontextmanager
@@ -76,10 +90,11 @@ async def lifespan(app: FastAPI):
     await usage_sync.start()
     from app.api.stream import _log_groq_keys
     await _log_groq_keys()
-    audiosocket_server = await start_audiosocket_server(_audiosocket_sock)
+    audiosocket_server = await start_audiosocket_server(_audiosocket_sock) if _audiosocket_sock is not None else None
     yield
-    audiosocket_server.close()
-    await audiosocket_server.wait_closed()
+    if audiosocket_server is not None:
+        audiosocket_server.close()
+        await audiosocket_server.wait_closed()
     await close_http_client()
     log.info("VoxiDet detenido.")
 

@@ -4,7 +4,7 @@
 
 ### Detección AMD con IA para contact centers Asterisk/Vicidial
 
-[![Version](https://img.shields.io/badge/version-1.13.0-e8a262?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.27.2-e8a262?style=flat-square)](CHANGELOG.md)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu%2022.04%20%2F%20Debian%2012-orange?style=flat-square)](#requisitos-del-vps)
 [![Telegram](https://img.shields.io/badge/soporte-Telegram-2CA5E0?style=flat-square&logo=telegram)](https://t.me/sktcod)
@@ -19,7 +19,7 @@
 ---
 
 - **Capa 1** — análisis de energía de audio, gratis, <100ms
-- **Capa 2** — transcripción con IA (Groq / OpenAI / Together / Deepgram) como fallback, ~300ms
+- **Capa 2** — transcripción con IA (Groq / Deepgram / OpenAI / Together / Fireworks / Vosk / Sherpa-onnx, con fallback automático entre proveedores) como respaldo, ~300ms
 
 ---
 
@@ -212,8 +212,18 @@ same => n,Hangup()
 
 Variables de canal que setea el AGI:
 - `AMDSTATUS` → `HUMAN` | `VOICEMAIL` | `UNKNOWN` | `ERROR`
-- `AMDLAYER`  → `1` (energía) o `2` (Deepgram)
+- `AMDLAYER`  → `1` (energía) o `2` (transcripción por IA)
 - `AMDMS`     → latencia en ms
+
+### Modos de detección (por cliente, desde el panel → Clientes → Editar)
+
+| Modo | Cómo funciona | Dialplan |
+|---|---|---|
+| **Batch** (default) | El AGI graba un fragmento corto y lo envía de una — la opción más simple, funciona en cualquier Asterisk sin tocar nada más. | El de arriba, sin cambios. |
+| **Stream** | Analiza el audio en vivo mientras la llamada progresa (EAGI), decide más rápido en más casos. Es unidireccional (no puede reproducir audio de vuelta mientras analiza). | Mismo `AGI(amd_ia.agi)`, el AGI decide el modo solo consultando la config del cliente en el servidor. |
+| **Audiosocket** | Transporte bidireccional nativo de Asterisk (`AudioSocket()`) — soluciona el problema de llamadas que quedaban en silencio muerto durante el análisis, mandando audio de confort de vuelta mientras decide. Requiere 3 líneas extra en el dialplan de ese nodo puntual (no es automático). | Ver el dialplan de referencia completo, ya armado con el dominio y puerto reales de tu servidor, en el panel: **Clientes → Editar cliente → modo Audiosocket**. Verificar antes que el nodo tenga los módulos `app_audiosocket`, `chan_audiosocket` y `res_audiosocket` cargados (`asterisk -rx "module show like audiosocket"`). |
+
+El modo se elige por cliente, no es global — se puede tener clientes en Batch y otros en Stream/Audiosocket al mismo tiempo en el mismo servidor VoxiDet.
 
 ---
 
