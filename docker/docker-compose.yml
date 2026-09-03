@@ -81,6 +81,11 @@ services:
     env_file: ../credentials.conf   # pasa GROQ_API_KEY_1, _2, DEEPGRAM_API_KEY_1, etc.
     ports:
       - "0.0.0.0:8000:8000"     # acceso directo por IP — cambiar a 127.0.0.1 si usas Cloudflare Tunnel
+      # AudioSocket (v1.27.0) — TCP crudo, no pasa por Cloudflare (no es HTTP),
+      # necesita su propio puerto expuesto directo. Sin TLS todavía (deuda
+      # técnica explícita, ver CHANGELOG v1.27.0) — el audio de la llamada
+      # viaja sin cifrar entre el nodo Asterisk y este puerto.
+      - "0.0.0.0:${AUDIOSOCKET_PORT:-9099}:${AUDIOSOCKET_PORT:-9099}"
     ulimits:
       nofile:
         soft: ${NOFILE_LIMIT:-65536}

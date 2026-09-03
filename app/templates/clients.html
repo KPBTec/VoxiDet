@@ -193,6 +193,7 @@
                 data-limit="{{ c.daily_limit }}"
                 data-ips="{{ (c.allowed_ips or '') | e }}"
                 data-active="{{ c.active | tojson }}"
+                data-mode="{{ c.amd_mode }}"
                 data-url="{{ (public_url ~ '/install/' ~ c.install_token) | e }}">Editar</button>
         <a href="{{ admin_prefix }}/clients/{{ c.id }}/audit"
            class="btn btn-sm btn-ghost" title="Historial de cambios de este cliente"
@@ -297,6 +298,26 @@
       </div>
     </div>
 
+    {# Instrucciones Audiosocket — solo visible si este cliente usa ese modo.
+       A diferencia de Batch/Stream (basta con el .agi ya instalado), Audiosocket
+       necesita un cambio de dialplan a mano en el nodo Asterisk — ver
+       CLAUDE.md § "4. Modo audiosocket" para el detalle completo. #}
+    <div class="modal-section" id="section-audiosocket" style="display:none;">
+      <div class="modal-section-title" style="color:var(--signal);">Dialplan — modo Audiosocket</div>
+      <p class="muted" style="font-size:.78rem; margin-bottom:.6rem;">
+        A diferencia de Batch/Stream, este modo necesita agregar estas 4 líneas al dialplan del nodo
+        Asterisk — no alcanza con el .agi ya instalado. Verificar antes que estén cargados los módulos
+        <code>app_audiosocket</code>, <code>chan_audiosocket</code> y <code>res_audiosocket</code>
+        (<code>asterisk -rx "module show like audiosocket"</code>).
+      </p>
+      <pre id="audiosocket-dialplan" style="background:var(--bg2); border:1px solid var(--border);
+           border-radius:var(--radius); padding:.75rem; font-size:.74rem; overflow-x:auto;
+           white-space:pre; margin-bottom:.6rem;"></pre>
+      <button type="button" class="btn btn-sm btn-ghost" id="btn-copy-dialplan" onclick="copyDialplanModal()">
+        📋 Copiar dialplan
+      </button>
+    </div>
+
     {# Zona peligrosa #}
     <div class="modal-section">
       <div class="modal-section-title" style="color:var(--red);">Zona peligrosa</div>
@@ -319,6 +340,8 @@
 let _installUrl   = '';
 let _clientName   = '';
 let _clientActive = false;
+let _dialplanText = '';
+const AUDIOSOCKET_PORT = {{ audiosocket_port | tojson }};
 
 function toggleForm() {
   const f = document.getElementById('new-client-form');
@@ -353,6 +376,25 @@ function openEdit(btn) {
   const toggleBtn = document.getElementById('btn-toggle');
   toggleBtn.textContent = active ? 'Desactivar' : 'Activar';
   toggleBtn.className   = 'btn btn-sm ' + (active ? 'btn-warning' : 'btn-success');
+
+  const mode = btn.dataset.mode;
+  const audiosocketSection = document.getElementById('section-audiosocket');
+  if (mode === 'audiosocket') {
+    // Mismo host que ya usa el link de instalación (respeta el dominio
+    // público configurado en /system) — AudioSocket es TCP crudo, no HTTPS,
+    // así que va sin esquema y con el puerto propio, no el 443/8000 del resto.
+    let host = 'TU-SERVIDOR';
+    try { host = new URL(installUrl).hostname; } catch (e) {}
+    _dialplanText =
+      'same => n,Set(CALL_UUID=${SHELL(cat /proc/sys/kernel/random/uuid)})\n' +
+      'same => n,AGI(amd_ia.agi,register,${CALL_UUID})\n' +
+      'same => n,AudioSocket(${CALL_UUID},' + host + ':' + AUDIOSOCKET_PORT + ')\n' +
+      'same => n,AGI(amd_ia.agi,result,${CALL_UUID})';
+    document.getElementById('audiosocket-dialplan').textContent = _dialplanText;
+    audiosocketSection.style.display = '';
+  } else {
+    audiosocketSection.style.display = 'none';
+  }
 
   document.getElementById('edit-modal').classList.add('open');
 }
@@ -391,6 +433,13 @@ function copyInstallModal() {
   copyText(cmd);
   btn.textContent = '✅ Copiado';
   setTimeout(() => btn.textContent = '📋 Copiar comando AGI', 2000);
+}
+
+function copyDialplanModal() {
+  const btn = document.getElementById('btn-copy-dialplan');
+  copyText(_dialplanText);
+  btn.textContent = '✅ Copiado';
+  setTimeout(() => btn.textContent = '📋 Copiar dialplan', 2000);
 }
 </script>
 {% endblock %}

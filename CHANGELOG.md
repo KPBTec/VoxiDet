@@ -7,6 +7,16 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.27.1 — 2026-08-05
+
+- Mejorado: el puerto y el firewall que necesita el modo "Audiosocket" ahora se configuran solos al
+  actualizar el servidor — antes había que hacerlo a mano.
+- Nuevo: al editar un cliente configurado en modo Audiosocket, el panel ahora muestra directamente las
+  instrucciones de configuración necesarias en la central telefónica, ya completadas con los datos
+  reales del servidor.
+
+---
+
 ## v1.27.0 — 2026-08-05
 
 - Nuevo: modo de detección "Audiosocket" — una forma alternativa de conectar el servidor a la central

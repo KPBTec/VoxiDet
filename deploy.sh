@@ -643,6 +643,12 @@ if command -v nft &>/dev/null; then
     WEB_PORT=$(grep -m1 '^API_PORT=' "$CREDS_FILE" 2>/dev/null | cut -d= -f2- || true)
     WEB_PORT="${WEB_PORT:-8000}"
 
+    # AUDIOSOCKET_PORT (v1.27.0) — mismo criterio que WEB_PORT arriba: default
+    # 9099 (igual que AUDIOSOCKET_PORT en app/config.py) salvo override en
+    # credentials.conf.
+    AUDIOSOCKET_PORT=$(grep -m1 '^AUDIOSOCKET_PORT=' "$CREDS_FILE" 2>/dev/null | cut -d= -f2- || true)
+    AUDIOSOCKET_PORT="${AUDIOSOCKET_PORT:-9099}"
+
     # apply_conf — mismo patrón que VoxiKam: sed sobre el archivo fuente del
     # repo, nunca se edita el destino en /etc a mano.
     apply_conf() {
@@ -651,12 +657,13 @@ if command -v nft &>/dev/null; then
             -e "s|__SSH_PORT__|${SSH_PORT}|g" \
             -e "s|__SSH_SERVICE__|${SSH_SERVICE}|g" \
             -e "s|__WEB_PORT__|${WEB_PORT}|g" \
+            -e "s|__AUDIOSOCKET_PORT__|${AUDIOSOCKET_PORT}|g" \
             "$src" > "$dst"
     }
 
     # Config base — copiada desde el repo (nftables/), no generada inline.
     apply_conf "$SRC_DIR/nftables/nftables.conf" /etc/nftables.conf
-    ok "/etc/nftables.conf (SSH_PORT=$SSH_PORT, WEB_PORT=$WEB_PORT)"
+    ok "/etc/nftables.conf (SSH_PORT=$SSH_PORT, WEB_PORT=$WEB_PORT, AUDIOSOCKET_PORT=$AUDIOSOCKET_PORT)"
 
     # Placeholder — evita que nftables.service falle con "File not found" si
     # gen_nftables.py aún no pudo escribir el fragmento real (p.ej. DB todavía

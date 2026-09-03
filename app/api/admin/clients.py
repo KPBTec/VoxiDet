@@ -68,6 +68,12 @@ async def clients_page(request: Request, site_id: str = ""):
         # descarga) ya usaba el dominio correcto.
         "public_url":       await resolve_server_url(request),
         "admin_prefix":     settings.ADMIN_PREFIX,
+        # Para armar el dialplan de referencia del modo Audiosocket en el
+        # modal de edición (ver openEdit() en el <script> de este template) —
+        # AudioSocket es TCP crudo, no pasa por Cloudflare, así que el host a
+        # usar en el dialplan es el mismo servidor pero por este puerto, no
+        # por HTTPS/443.
+        "audiosocket_port": settings.AUDIOSOCKET_PORT,
     })
 
 
