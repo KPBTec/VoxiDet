@@ -7,6 +7,15 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.27.6 — 2026-09-03
+
+- Corregido: en la primera prueba real del modo "Audiosocket" contra una central telefónica en
+  producción, se encontró que la central rechazaba la conexión por un detalle de formato en el
+  identificador de llamada. Corregido — actualizá el dialplan de cualquier cliente que ya hayas migrado
+  a Audiosocket con la línea nueva que te muestra el panel (Clientes → Editar → sección Audiosocket).
+
+---
+
 ## v1.27.5 — 2026-09-03
 
 - Seguridad: se corrió una auditoría dedicada de vulnerabilidades conocidas (CVEs) contra bases de datos

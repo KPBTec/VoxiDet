@@ -340,13 +340,17 @@ def _run_stream(uid, phone, lead_id, campaign_id, list_id):
 # dialplan alrededor de AudioSocket() nativo (no algo que este script pueda
 # manejar solo, a diferencia de batch/stream: AudioSocket() es una app de
 # dialplan, Asterisk maneja el audio directo, este script solo registra
-# ANTES y consulta el resultado DESPUÉS). Dialplan de referencia:
-#   same => n,Set(CALL_UUID=${SHELL(cat /proc/sys/kernel/random/uuid)})
+# ANTES y consulta el resultado DESPUÉS). Dialplan de referencia (validado
+# contra un Asterisk real en v1.27.5 — ver nota sobre STRIP() abajo):
+#   same => n,Set(CALL_UUID=${STRIP(${SHELL(cat /proc/sys/kernel/random/uuid)})})
 #   same => n,AGI(amd_ia.agi,register,${CALL_UUID})
 #   same => n,AudioSocket(${CALL_UUID},__SERVER_HOST__:__AUDIOSOCKET_PORT__)
 #   same => n,AGI(amd_ia.agi,result,${CALL_UUID})
-# (validar la sintaxis exacta de generación de UUID contra la versión real
-# de Asterisk antes de usar en producción — no se pudo probar en vivo).
+# STRIP() es obligatorio, no cosmético: ${SHELL(...)} de Asterisk NO recorta
+# el salto de línea final que deja `cat` — sin STRIP(), CALL_UUID queda con
+# un "\n" pegado al final, AudioSocket() lo rechaza con
+# "Failed to parse UUID '...\n'" (app_audiosocket.c). Confirmado en
+# producción real (log de Asterisk, v1.27.5) antes de este fix.
 def _run_audiosocket_phase(phase, call_uuid):
     if not call_uuid:
         _log("AMD-IA audiosocket: falta UUID (agi_arg_2)")

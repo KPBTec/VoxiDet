@@ -4,7 +4,7 @@
 
 ### Detección AMD con IA para contact centers Asterisk/Vicidial
 
-[![Version](https://img.shields.io/badge/version-1.27.5-e8a262?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.27.6-e8a262?style=flat-square)](CHANGELOG.md)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu%2022.04%20%2F%20Debian%2012-orange?style=flat-square)](#requisitos-del-vps)
 [![Telegram](https://img.shields.io/badge/soporte-Telegram-2CA5E0?style=flat-square&logo=telegram)](https://t.me/sktcod)
