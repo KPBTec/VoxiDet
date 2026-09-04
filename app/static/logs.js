@@ -20,6 +20,7 @@ function connect(filters) {
   if (filters?.uniqueid) params.set('uniqueid',  filters.uniqueid);
   if (filters?.session)  params.set('session',   filters.session);
   if (filters?.date)     params.set('date',      filters.date);
+  if (filters?.callId)   params.set('call_id',   filters.callId);
 
   const url = `${adminPrefix}/logs/stream` + (params.toString() ? '?' + params : '');
 
@@ -98,6 +99,7 @@ function buildRow(r) {
   const resultClass = `result-${r.result || 'UNKNOWN'}`;
   const transcript  = r.transcript || '';
   const sessionId   = r.param2 || '';
+  const callId      = r.call_id || '';
   const leadId      = r.param1 || '';
   const p4parts     = (r.param4 || '').split('|');
   const campaignId  = p4parts[0] || '';
@@ -155,6 +157,9 @@ function buildRow(r) {
     <td style="font-size:.7rem; color:#475569; font-family:monospace; cursor:${sessionId ? 'pointer' : 'default'}"
         title="${sessionId ? 'Clic para filtrar por esta sesión' : ''}"
         onclick="${sessionId ? `filterBySession('${esc(sessionId)}')` : ''}">${esc(sessionId)}</td>
+    <td style="font-size:.7rem; color:#475569; font-family:monospace; cursor:${callId ? 'pointer' : 'default'}"
+        title="${callId ? 'UniqueID de Asterisk — clic para filtrar por esta llamada' : ''}"
+        onclick="${callId ? `filterByCallId('${esc(callId)}')` : ''}">${esc(callId)}</td>
   `;
   return tr;
 }
@@ -193,6 +198,7 @@ function currentFilters() {
     uniqueid: document.getElementById('f-uniqueid')?.value.trim(),
     session:  document.getElementById('f-session')?.value.trim(),
     date:     document.getElementById('f-date')?.value,
+    callId:   document.getElementById('f-callid')?.value.trim(),
   };
 }
 
@@ -206,12 +212,18 @@ function clearFilters() {
   document.getElementById('f-uniqueid').value = '';
   document.getElementById('f-session').value  = '';
   document.getElementById('f-date').value     = '';
+  document.getElementById('f-callid').value   = '';
   connect();
 }
 
 function filterBySession(sid) {
   const el = document.getElementById('f-session');
   if (el) { el.value = sid; applyFilters(); }
+}
+
+function filterByCallId(cid) {
+  const el = document.getElementById('f-callid');
+  if (el) { el.value = cid; applyFilters(); }
 }
 
 function esc(str) {

@@ -30,6 +30,7 @@ async def logs_stream(
     uniqueid:  str | None = None,
     session:   str | None = None,
     date:      str | None = None,
+    call_id:   str | None = None,
 ):
     if not get_session(request):
         return login_redirect(request)
@@ -47,6 +48,7 @@ async def logs_stream(
             param1_filter=uniqueid,
             session_filter=session,
             date_filter=date,
+            call_id_filter=call_id,
         )
         # Enviamos en orden cronológico (más viejo primero)
         payload = json.dumps([_serialize(r) for r in reversed(initial)])
@@ -69,6 +71,7 @@ async def logs_stream(
                 param1_filter=uniqueid,
                 session_filter=session,
                 date_filter=date,
+                call_id_filter=call_id,
             )
             for row in rows:
                 last_id = row["id"]

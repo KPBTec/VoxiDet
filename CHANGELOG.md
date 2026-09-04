@@ -7,6 +7,13 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.27.10 — 2026-09-04
+
+- Nuevo: la pantalla de Logs en vivo ahora muestra y permite filtrar por el UniqueID real de la central
+  telefónica, para poder cruzar cada detección con el registro técnico del servidor de telefonía.
+
+---
+
 ## v1.27.9 — 2026-09-04
 
 - Seguridad: se encontró y corrigió el mismo tipo de problema de la actualización anterior, esta vez en

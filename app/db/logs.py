@@ -194,6 +194,7 @@ async def get_logs_since(
     param1_filter: str | None = None,
     session_filter: str | None = None,
     date_filter: str | None = None,
+    call_id_filter: str | None = None,
 ) -> list[dict]:
     """Retorna logs con id > last_id. Usado por el stream SSE del CMS."""
     where = "WHERE l.id > :last_id"
@@ -212,6 +213,9 @@ async def get_logs_since(
     if session_filter:
         where += " AND l.param2 = :p2"
         params["p2"] = session_filter
+    if call_id_filter:
+        where += " AND l.call_id = :call_id"
+        params["call_id"] = call_id_filter
     if date_filter:
         # Rango, no DATE(l.created_at) = :d — envolver la COLUMNA en una
         # función impide usar cualquier índice sobre created_at. DATE_ADD
@@ -224,7 +228,7 @@ async def get_logs_since(
         result = await db.execute(
             text(f"""
                 SELECT l.id, TIME(l.created_at) AS time, l.created_at AS datetime,
-                       c.name AS client, l.caller_id, l.result,
+                       c.name AS client, l.caller_id, l.call_id, l.result,
                        l.layer_used AS layer, l.mode, l.provider, l.latency_ms,
                        l.transcript, l.param1, l.param2, l.param3, l.param4, l.beep_detected
                 FROM voxidet_logs l
@@ -247,6 +251,7 @@ async def get_recent_logs(
     param1_filter: str | None = None,
     session_filter: str | None = None,
     date_filter: str | None = None,
+    call_id_filter: str | None = None,
 ) -> list[dict]:
     # client_id=0 → vista admin global (todos los clientes)
     where = "WHERE 1=1" if client_id == 0 else "WHERE l.client_id = :cid"
@@ -266,6 +271,9 @@ async def get_recent_logs(
     if session_filter:
         where += " AND l.param2 = :p2"
         params["p2"] = session_filter
+    if call_id_filter:
+        where += " AND l.call_id = :call_id"
+        params["call_id"] = call_id_filter
     if date_filter:
         where += " AND l.created_at >= :d0 AND l.created_at < DATE_ADD(:d0, INTERVAL 1 DAY)"
         params["d0"] = f"{date_filter} 00:00:00"

@@ -31,6 +31,7 @@
   </select>
   <input type="text" id="f-uniqueid" placeholder="Lead ID" style="width:130px;">
   <input type="text" id="f-session"  placeholder="Session ID" style="width:110px; font-family:var(--font-mono); font-size:.85rem;">
+  <input type="text" id="f-callid"   placeholder="UniqueID (Asterisk)" style="width:150px; font-family:var(--font-mono); font-size:.85rem;">
   <button class="btn btn-primary" onclick="applyFilters()">Filtrar</button>
   <button class="btn btn-ghost"   onclick="clearFilters()">Limpiar</button>
   <span class="muted" style="margin-left:auto;">
@@ -57,11 +58,12 @@
         <th>ms</th>
         <th>Transcripción</th>
         <th>Session</th>
+        <th title="UniqueID real del canal de Asterisk (agi_uniqueid) — para cruzar con el log de Asterisk">UniqueID</th>
       </tr>
     </thead>
     <tbody id="log-body">
       <tr id="empty-row">
-        <td colspan="14" class="empty">Esperando llamadas...</td>
+        <td colspan="15" class="empty">Esperando llamadas...</td>
       </tr>
     </tbody>
   </table>

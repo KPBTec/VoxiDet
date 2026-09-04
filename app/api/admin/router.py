@@ -43,6 +43,7 @@ async def api_logs(
     caller_id: str | None = None,
     result   : str | None = None,
     uniqueid : str | None = None,
+    call_id  : str | None = None,
 ):
     limit = min(limit, 500)
     if result and result not in ("HUMAN", "VOICEMAIL", "UNKNOWN"):
@@ -50,6 +51,7 @@ async def api_logs(
     rows = await get_recent_logs(
         client_id=0, limit=limit,
         caller_filter=caller_id, result_filter=result, param1_filter=uniqueid,
+        call_id_filter=call_id,
     )
     return {"count": len(rows), "logs": rows}
 
