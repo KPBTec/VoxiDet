@@ -6,10 +6,10 @@ Complementa nftables (capa de red) con controles en la app:
   - Security headers en todas las respuestas
 """
 import logging
+import secrets
 import time
 from typing import Callable
 
-from cachetools import TTLCache
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -54,20 +54,6 @@ SECURITY_HEADERS = {
     "Server": "VoxiDet",
 }
 
-# Antes: dict[str, list[float]] con key f"{ip}:{prefix}" — se filtraban los
-# timestamps vencidos pero la key nunca se borraba con la lista vacía, así
-# que el dict crecía sin límite durante la vida del proceso (una entrada
-# fantasma por cada IP distinta que alguna vez pegó contra /amd o /admin/).
-# TTLCache por prefijo resuelve ambos problemas: una IP inactiva por más de
-# `window` segundos se auto-expira sola (sin tarea de limpieza aparte), y
-# `maxsize` pone un techo duro para el caso extremo de un burst con miles de
-# IPs distintas en la misma ventana, antes de que el TTL llegue a actuar.
-_counters: dict[str, TTLCache] = {
-    prefix: TTLCache(maxsize=50_000, ttl=window)
-    for prefix, (_, window) in RATE_LIMITS.items()
-}
-
-
 def get_ip(request: Request) -> str:
     cf = request.headers.get("CF-Connecting-IP")
     if cf:
@@ -83,23 +69,44 @@ def is_blocked_ua(user_agent: str) -> bool:
     return any(b in ua for b in BLOCKED_UAS)
 
 
-def check_rate_limit(ip: str, path: str) -> tuple[bool, int]:
+async def check_rate_limit(ip: str, path: str) -> tuple[bool, int]:
     """(excede_limite, ventana_en_segundos) para el primer prefijo de
     RATE_LIMITS que matchee `path`. No se loguea como SECURITY_REJECT (no
     alimenta fail2ban) — un dialer legítimo de alto volumen puede superar el
     límite en tráfico normal, banearlo por esto sería un auto-DoS. Reusado
     tanto por el middleware HTTP (dispatch) como por el WebSocket de stream,
-    que BaseHTTPMiddleware no puede proteger (ver amd_stream() en stream.py)."""
-    now = time.monotonic()
+    que BaseHTTPMiddleware no puede proteger (ver amd_stream() en stream.py).
+
+    Contador en Redis (sorted set, ventana deslizante), no en memoria del
+    proceso — encontrado en producción (mismo patrón que
+    local_asr.py::_SHERPA_CONCURRENCY): un TTLCache normal vive DENTRO de
+    cada worker de gunicorn, no se comparte entre ellos. Con N workers, el
+    límite real efectivo terminaba siendo el configurado multiplicado por N
+    (una IP abusiva repartida entre 11 workers por el balanceo de conexiones
+    veía, en la práctica, ~11x el límite anunciado antes de que cualquier
+    worker individual la bloqueara). Redis lo comparte de verdad entre todos.
+    Fail-open si Redis está caído — no cortar tráfico legítimo por eso, mismo
+    criterio que el circuit breaker de proveedores (amd_engine.py)."""
     for prefix, (max_req, window) in RATE_LIMITS.items():
         if path.startswith(prefix):
-            cache = _counters[prefix]
-            hits  = [t for t in cache.get(ip, ()) if now - t < window]
-            if len(hits) >= max_req:
-                return True, window
-            hits.append(now)
-            cache[ip] = hits   # reinserta → refresca el TTL de esta IP
-            return False, window
+            try:
+                from app.cache.client_cache import get_redis
+                r = await get_redis()
+                key = f"amd:ratelimit:{prefix}:{ip}"
+                # time.time() (reloj de pared), no time.monotonic() — el
+                # monotonic de cada proceso tiene su propio origen arbitrario,
+                # no es comparable entre workers distintos.
+                now = time.time()
+                await r.zremrangebyscore(key, 0, now - window)
+                count = await r.zcard(key)
+                if count >= max_req:
+                    return True, window
+                await r.zadd(key, {f"{now}:{secrets.token_hex(3)}": now})
+                await r.expire(key, window)
+                return False, window
+            except Exception as e:
+                log.warning("check_rate_limit: Redis no disponible (%s) — fail-open", e)
+                return False, window
     return False, 0
 
 
@@ -117,7 +124,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         # Rate limiting por prefijo — BaseHTTPMiddleware solo procesa scope
         # "http", así que esto nunca corre para el WebSocket de /amd/stream
         # (protegido aparte, directo en amd_stream(), ver check_rate_limit()).
-        exceeded, window = check_rate_limit(ip, path)
+        exceeded, window = await check_rate_limit(ip, path)
         if exceeded:
             return JSONResponse(
                 {"detail": "Rate limit — intenta mas tarde"},

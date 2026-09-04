@@ -7,6 +7,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.27.9 — 2026-09-04
+
+- Seguridad: se encontró y corrigió el mismo tipo de problema de la actualización anterior, esta vez en
+  el límite de solicitudes por IP (protección contra abuso) — el límite real permitido era más alto de
+  lo que debía. Ya corregido.
+
+---
+
 ## v1.27.8 — 2026-09-03
 
 - Corregido: bajo tráfico alto con transcripción local (Sherpa/Vosk), el servidor podía llegar a usar el

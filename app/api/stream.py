@@ -706,7 +706,7 @@ async def amd_stream(ws: WebSocket):
         log.warning("SECURITY_REJECT ip=%s reason=blocked_ua path=/amd/stream", ip)
         await ws.close(code=1008)
         return
-    exceeded, window = check_rate_limit(ip, "/amd/stream")
+    exceeded, window = await check_rate_limit(ip, "/amd/stream")
     if exceeded:
         await ws.close(code=1013)  # 1013 = "try again later"
         return
