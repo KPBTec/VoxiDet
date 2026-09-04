@@ -7,6 +7,13 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.28.1 — 2026-09-04
+
+- Mejorado: la configuración del modo ARI (experimental) ahora se puede hacer desde el panel
+  (Sistema → Modo ARI) en vez de editar archivos de texto en el servidor.
+
+---
+
 ## v1.28.0 — 2026-09-04
 
 - Nuevo (experimental): un modo alternativo de conexión con la central telefónica para los casos donde

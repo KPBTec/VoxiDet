@@ -50,6 +50,58 @@
   </form>
 </div>
 
+{# ── Modo ARI (experimental) ── #}
+<div class="card">
+  <div style="font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;
+              letter-spacing:.05em;margin-bottom:.75rem;">
+    Modo ARI <span style="color:var(--yellow);text-transform:none;letter-spacing:0;">(experimental)</span>
+  </div>
+  <p class="muted" style="font-size:.8rem;margin-bottom:.75rem;">
+    Controla llamadas por la API REST/WebSocket de Asterisk (ARI) en vez de depender de
+    <code>AudioSocket()</code> — ver README.md § "Modo ARI (experimental)". Usar solo con la
+    extensión de prueba (<code>8379</code> por convención), nunca en producción real todavía.
+    Un cambio acá requiere reiniciar el contenedor <code>ari-controller</code>
+    (<code>docker compose restart ari-controller</code>) para tomar efecto.
+  </p>
+  <form method="post" action="{{ admin_prefix }}/system/ari-settings"
+        style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.6rem;max-width:820px;">
+    <div>
+      <label class="muted" style="font-size:.72rem;display:block;margin-bottom:.25rem;">ARI URL</label>
+      <input type="text" name="ari_url" value="{{ ari.ari_url }}" placeholder="http://10.0.0.x:8088" style="width:100%;">
+    </div>
+    <div>
+      <label class="muted" style="font-size:.72rem;display:block;margin-bottom:.25rem;">Usuario ARI</label>
+      <input type="text" name="ari_user" value="{{ ari.ari_user }}" placeholder="voxidet" style="width:100%;">
+    </div>
+    <div>
+      <label class="muted" style="font-size:.72rem;display:block;margin-bottom:.25rem;">
+        Contraseña ARI {% if ari.ari_password_set %}<span style="color:var(--green);">(ya configurada)</span>{% endif %}
+      </label>
+      <input type="password" name="ari_password" value="" placeholder="dejar vacío para no cambiar" style="width:100%;" autocomplete="new-password">
+    </div>
+    <div>
+      <label class="muted" style="font-size:.72rem;display:block;margin-bottom:.25rem;">Nombre de la app Stasis</label>
+      <input type="text" name="ari_app" value="{{ ari.ari_app }}" placeholder="voxidet-ari" style="width:100%;">
+    </div>
+    <div>
+      <label class="muted" style="font-size:.72rem;display:block;margin-bottom:.25rem;">Cómo llega el audio</label>
+      <select name="ari_media_mode" style="width:100%;">
+        <option value="rtp"         {% if ari.ari_media_mode == 'rtp' %}selected{% endif %}>RTP (sin módulos extra en Asterisk)</option>
+        <option value="audiosocket" {% if ari.ari_media_mode == 'audiosocket' %}selected{% endif %}>Audiosocket (si chan_audiosocket está instalado)</option>
+      </select>
+    </div>
+    <div>
+      <label class="muted" style="font-size:.72rem;display:block;margin-bottom:.25rem;">
+        Host de este servidor (que Asterisk pueda alcanzar)
+      </label>
+      <input type="text" name="audiosocket_host" value="{{ ari.audiosocket_host }}" placeholder="10.0.0.x" style="width:100%;">
+    </div>
+    <div style="grid-column:1/-1;">
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
+</div>
+
 {# ── Llamadas activas ── #}
 <div class="sys-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:1rem;">
   <div class="sys-card" id="card-active">

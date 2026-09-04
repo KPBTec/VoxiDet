@@ -4,7 +4,7 @@
 
 ### Detección AMD con IA para contact centers Asterisk/Vicidial
 
-[![Version](https://img.shields.io/badge/version-1.28.0-e8a262?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.28.1-e8a262?style=flat-square)](CHANGELOG.md)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu%2022.04%20%2F%20Debian%2012-orange?style=flat-square)](#requisitos-del-vps)
 [![Telegram](https://img.shields.io/badge/soporte-Telegram-2CA5E0?style=flat-square&logo=telegram)](https://t.me/sktcod)
@@ -243,10 +243,18 @@ cliente en producción**, hasta validarlo en vivo.
 
 ### 1. Habilitar ARI en Asterisk
 
+`ari.conf` completo (partiendo del archivo de ejemplo que ya trae Asterisk — solo hacen falta estas
+líneas, el resto de las opciones comentadas quedan igual):
+
 ```ini
 # /etc/asterisk/ari.conf
 [general]
 enabled = yes
+; channelvars: manda estas variables YA incluidas en cada evento de Stasis
+; (StasisStart), así el controlador no tiene que pedirlas una por una por
+; HTTP — evita hasta 5 llamadas REST por llamada. Sin esta línea igual
+; funciona (cae a pedirlas una por una), pero es más lento.
+channelvars = VOXIDET_API_KEY,phone_number,lead_id,campaign_id,list_id
 
 [voxidet]
 type = user

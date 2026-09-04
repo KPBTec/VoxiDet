@@ -138,7 +138,18 @@ def _rest_client() -> httpx.AsyncClient:
     )
 
 
-async def _get_channel_var(client: httpx.AsyncClient, channel_id: str, var: str) -> str:
+async def _get_channel_var(
+    client: httpx.AsyncClient, channel_id: str, var: str,
+    channelvars: dict | None = None,
+) -> str:
+    """Si Asterisk ya mandó el valor en el propio evento StasisStart (ver
+    `channelvars=` en ari.conf y README.md § "Modo ARI") lo usa directo, sin
+    round-trip — evita hasta 5 llamadas REST por llamada (una por variable:
+    VOXIDET_API_KEY, phone_number, lead_id, campaign_id, list_id). Si esa
+    opción no está configurada (channelvars vacío/None), cae a consultarla
+    una por una vía REST, más lento pero funciona igual."""
+    if channelvars and var in channelvars:
+        return channelvars.get(var) or ""
     try:
         r = await client.get(f"/channels/{channel_id}/variable", params={"variable": var})
         if r.status_code == 200:
@@ -162,18 +173,18 @@ async def _hangup_channel(client: httpx.AsyncClient, channel_id: str) -> None:
         pass  # ya puede estar colgado/destruido — no es un error real acá
 
 
-async def _process_call(client: httpx.AsyncClient, channel_id: str) -> None:
+async def _process_call(client: httpx.AsyncClient, channel_id: str, channelvars: dict | None = None) -> None:
     try:
-        await _process_call_inner(client, channel_id)
+        await _process_call_inner(client, channel_id, channelvars)
     except Exception as e:
         log.error("ARI: error procesando canal %s: %s", channel_id, e, exc_info=e)
         await _hangup_channel(client, channel_id)
 
 
-async def _process_call_inner(client: httpx.AsyncClient, channel_id: str) -> None:
+async def _process_call_inner(client: httpx.AsyncClient, channel_id: str, channelvars: dict | None = None) -> None:
     from app.cache.client_cache import get_client_cached
 
-    api_key = await _get_channel_var(client, channel_id, "VOXIDET_API_KEY")
+    api_key = await _get_channel_var(client, channel_id, "VOXIDET_API_KEY", channelvars)
     if not api_key:
         log.error("ARI: canal %s sin variable VOXIDET_API_KEY (setearla en el dialplan antes de Stasis()) — colgando", channel_id)
         await _hangup_channel(client, channel_id)
@@ -204,7 +215,7 @@ async def _process_call_inner(client: httpx.AsyncClient, channel_id: str) -> Non
     if settings.ARI_MEDIA_MODE == "rtp":
         result = await _run_rtp_mode(client, session_id, call_uuid, snoop_id, voxidet_client)
     else:
-        result = await _run_audiosocket_mode(client, session_id, call_uuid, snoop_id, voxidet_client, channel_id)
+        result = await _run_audiosocket_mode(client, session_id, call_uuid, snoop_id, voxidet_client, channel_id, channelvars)
 
     if result is None:
         result = {"status": "ERROR", "layer_used": 0, "latency_ms": 0}
@@ -229,7 +240,7 @@ async def _process_call_inner(client: httpx.AsyncClient, channel_id: str) -> Non
 
 async def _run_audiosocket_mode(
     client: httpx.AsyncClient, session_id: str, call_uuid: str, snoop_id: str,
-    voxidet_client: dict, channel_id: str,
+    voxidet_client: dict, channel_id: str, channelvars: dict | None = None,
 ) -> dict | None:
     """Reusa chan_audiosocket + el servidor TCP que ya corre siempre
     (audiosocket_server.py, sin cambios ahí) — requiere ese módulo cargado
@@ -244,10 +255,10 @@ async def _run_audiosocket_mode(
         json.dumps({
             "client":      voxidet_client,
             "call_id":     channel_id[:100],
-            "caller_id":   await _get_channel_var(client, channel_id, "phone_number"),
-            "lead_id":     await _get_channel_var(client, channel_id, "lead_id"),
-            "campaign_id": await _get_channel_var(client, channel_id, "campaign_id"),
-            "list_id":     await _get_channel_var(client, channel_id, "list_id"),
+            "caller_id":   await _get_channel_var(client, channel_id, "phone_number", channelvars),
+            "lead_id":     await _get_channel_var(client, channel_id, "lead_id", channelvars),
+            "campaign_id": await _get_channel_var(client, channel_id, "campaign_id", channelvars),
+            "list_id":     await _get_channel_var(client, channel_id, "list_id", channelvars),
         }, default=str),
     )
 
@@ -455,12 +466,40 @@ async def _handle_event(client: httpx.AsyncClient, event: dict) -> None:
         return
 
     log.info("ARI: StasisStart canal real=%s (%s)", channel_id, channel.get("name", ""))
-    asyncio.create_task(_process_call(client, channel_id))
+    asyncio.create_task(_process_call(client, channel_id, channel.get("channelvars")))
+
+
+async def _apply_db_overrides() -> None:
+    """Mismo mecanismo que resolve_server_url()/app/api/install.py para
+    public_url: el panel (Sistema → Modo ARI) guarda en MySQL (app_settings)
+    porque no puede reescribir credentials.conf (env_file: en
+    docker-compose.yml nunca lo monta como archivo). Se aplica UNA vez al
+    arrancar, mutando `settings` in-place — el resto del módulo ya lee todo
+    desde `settings.ARI_*`, así que no hace falta tocar nada más. Un cambio
+    desde el panel requiere reiniciar este contenedor para tomar efecto (no
+    es hot-reload — es una conexión WebSocket persistente de larga vida)."""
+    try:
+        from app.db.settings import get_setting
+        overrides = {
+            "ARI_URL":          await get_setting("ari_url"),
+            "ARI_USER":         await get_setting("ari_user"),
+            "ARI_PASSWORD":     await get_setting("ari_password"),
+            "ARI_APP":          await get_setting("ari_app"),
+            "ARI_MEDIA_MODE":   await get_setting("ari_media_mode"),
+            "AUDIOSOCKET_HOST": await get_setting("audiosocket_host"),
+        }
+        for key, value in overrides.items():
+            if value:
+                setattr(settings, key, value)
+    except Exception as e:
+        log.warning("ARI: no se pudo leer overrides de MySQL (se sigue con credentials.conf/env): %s", e)
 
 
 async def run() -> None:
     """Loop principal — conecta al WebSocket de eventos de ARI y despacha
     StasisStart. Reconecta solo si se corta (Asterisk reiniciando, red, etc)."""
+    await _apply_db_overrides()
+
     if not settings.ARI_URL or not settings.ARI_PASSWORD:
         log.error("ARI: ARI_URL/ARI_PASSWORD no configurados — el controlador no arranca "
                    "(ver README.md § Modo ARI (experimental)).")

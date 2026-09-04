@@ -58,6 +58,22 @@ async def system_page(request: Request, _=Depends(require_session)):
     # para que el campo nunca muestre una URL ambigua sobre si necesita http(s)://.
     if public_url and "://" not in public_url:
         public_url = "http://" + public_url
+
+    # Modo ARI (experimental, v1.28.0) — mismo mecanismo que public_url de
+    # arriba: override en MySQL (app_settings, editable acá) por encima de
+    # credentials.conf, porque el panel no puede reescribir ese archivo (ver
+    # docstring de app/db/settings.py). La password NUNCA se manda de vuelta
+    # al formulario (ver update_ari_settings) — el campo queda vacío y solo
+    # se pisa si se tipea una nueva.
+    ari_settings = {
+        "ari_url":          (await get_setting("ari_url")   or settings.ARI_URL),
+        "ari_user":         (await get_setting("ari_user")  or settings.ARI_USER),
+        "ari_app":          (await get_setting("ari_app")   or settings.ARI_APP),
+        "ari_media_mode":   (await get_setting("ari_media_mode") or settings.ARI_MEDIA_MODE),
+        "audiosocket_host": (await get_setting("audiosocket_host") or settings.AUDIOSOCKET_HOST),
+        "ari_password_set": bool(await get_setting("ari_password") or settings.ARI_PASSWORD),
+    }
+
     return _templates.TemplateResponse(request, "system.html", {
         "request":      request,
         "admin_prefix": settings.ADMIN_PREFIX,
@@ -65,7 +81,40 @@ async def system_page(request: Request, _=Depends(require_session)):
         "stats":        stats,
         "active_calls": active_calls,
         "public_url":   public_url,
+        "ari":          ari_settings,
     })
+
+
+@router.post("/system/ari-settings")
+async def update_ari_settings(
+    request: Request,
+    ari_url:          str = Form(""),
+    ari_user:         str = Form(""),
+    ari_password:     str = Form(""),
+    ari_app:          str = Form(""),
+    ari_media_mode:   str = Form("rtp"),
+    audiosocket_host: str = Form(""),
+    _=Depends(require_session),
+):
+    """Modo ARI (EXPERIMENTAL, v1.28.0) — ver app/ari/controller.py. Guarda
+    en MySQL (app_settings), no en credentials.conf (mismo motivo que
+    public_url: el panel no puede reescribir ese archivo). El contenedor
+    `ari-controller` lee este override al arrancar (ver
+    app/ari/controller.py::run()) — un cambio acá requiere reiniciarlo
+    (`docker compose restart ari-controller`) para tomar efecto, no es
+    hot-reload — es una conexión WebSocket persistente de larga vida, no
+    tiene sentido reconectarla sola en caliente por cada cambio de config."""
+    await set_setting("ari_url", ari_url.strip().rstrip("/"))
+    await set_setting("ari_user", ari_user.strip())
+    if ari_password.strip():
+        # Campo vacío = "no cambiar" — nunca se manda la password actual de
+        # vuelta al formulario, así que un submit sin tocar ese campo no
+        # debe borrar la que ya estaba guardada.
+        await set_setting("ari_password", ari_password.strip())
+    await set_setting("ari_app", ari_app.strip() or "voxidet-ari")
+    await set_setting("ari_media_mode", ari_media_mode.strip() or "rtp")
+    await set_setting("audiosocket_host", audiosocket_host.strip())
+    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/system?ari_saved=1", status_code=302)
 
 
 @router.post("/system/public-url")
