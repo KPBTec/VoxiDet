@@ -4,7 +4,7 @@
 
 ### Detección AMD con IA para contact centers Asterisk/Vicidial
 
-[![Version](https://img.shields.io/badge/version-1.27.10-e8a262?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.28.0-e8a262?style=flat-square)](CHANGELOG.md)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Ubuntu%2022.04%20%2F%20Debian%2012-orange?style=flat-square)](#requisitos-del-vps)
 [![Telegram](https://img.shields.io/badge/soporte-Telegram-2CA5E0?style=flat-square&logo=telegram)](https://t.me/sktcod)
@@ -224,6 +224,80 @@ Variables de canal que setea el AGI:
 | **Audiosocket** | Transporte bidireccional nativo de Asterisk (`AudioSocket()`) — soluciona el problema de llamadas que quedaban en silencio muerto durante el análisis, mandando audio de confort de vuelta mientras decide. Requiere 3 líneas extra en el dialplan de ese nodo puntual (no es automático). | Ver el dialplan de referencia completo, ya armado con el dominio y puerto reales de tu servidor, en el panel: **Clientes → Editar cliente → modo Audiosocket**. Verificar antes que el nodo tenga los módulos `app_audiosocket`, `chan_audiosocket` y `res_audiosocket` cargados (`asterisk -rx "module show like audiosocket"`). |
 
 El modo se elige por cliente, no es global — se puede tener clientes en Batch y otros en Stream/Audiosocket al mismo tiempo en el mismo servidor VoxiDet.
+
+> **Nota sobre Audiosocket y Asterisk 18.26.4:** en esa versión puntual, la aplicación de dialplan
+> `AudioSocket()` nunca continúa a la siguiente línea del dialplan pase lo que pase (confirmado contra el
+> código fuente de esa versión) — un cliente HUMAN detectado bien igual termina colgado en vez de
+> transferido al agente. Para ese caso existe el **modo ARI (experimental)**, ver más abajo.
+
+---
+
+## Modo ARI (experimental, v1.28.0)
+
+Soluciona la limitación de arriba: en vez de que el dialplan dependa de que `AudioSocket()` "no falle",
+un servicio aparte (`ari-controller`, otro contenedor, no otro worker de la API) controla la llamada
+directamente vía la API REST/WebSocket de Asterisk (ARI) y le dice explícitamente cuándo continuar.
+
+**Usar solo en una extensión de prueba nueva (`8379` por convención) — nunca en la extensión real de un
+cliente en producción**, hasta validarlo en vivo.
+
+### 1. Habilitar ARI en Asterisk
+
+```ini
+# /etc/asterisk/ari.conf
+[general]
+enabled = yes
+
+[voxidet]
+type = user
+password = una_contraseña_fuerte
+; NO agregar read_only = yes — el controlador necesita crear canales/bridges
+```
+
+```bash
+asterisk -rx "module reload res_ari.so"
+```
+
+`http.conf` debe tener `enabled=yes` (viene así en la mayoría de las instalaciones — confirmar con
+`asterisk -rx "http show status"`).
+
+### 2. Configurar `credentials.conf`
+
+```ini
+ARI_URL=http://IP_DEL_ASTERISK:8088
+ARI_USER=voxidet
+ARI_PASSWORD=la_misma_que_pusiste_en_ari.conf
+ARI_APP=voxidet-ari
+# "rtp" si el Asterisk NO tiene chan_audiosocket instalado (caso más común),
+# "audiosocket" si sí lo tiene (ver sección Audiosocket de arriba)
+ARI_MEDIA_MODE=rtp
+# IP de este servidor VoxiDet, alcanzable desde el Asterisk por la red interna
+AUDIOSOCKET_HOST=10.0.0.x
+```
+
+`sudo bash deploy.sh` levanta el contenedor `ari-controller` — si `ARI_URL`/`ARI_PASSWORD` quedan vacíos,
+el contenedor arranca pero no hace nada (lo avisa en sus logs).
+
+### 3. Dialplan de la extensión de prueba
+
+```
+exten => 8379,1,AGI(agi://127.0.0.1:4577/call_log)
+exten => 8379,n,Playback(sip-silence)
+exten => 8379,n,Wait(0.5)
+exten => 8379,n,Set(VOXIDET_API_KEY=api_key_del_cliente_de_prueba)
+exten => 8379,n,Stasis(voxidet-ari)
+exten => 8379,n(after-ari),NoOp(AMD: ${AMDSTATUS} capa=${AMDLAYER} ${AMDMS}ms)
+exten => 8379,n,GotoIf($["${AMDSTATUS}"="HUMAN"]?human)
+exten => 8379,n,Hangup()
+exten => 8379,n(human),AGI(agi-VDAD_ALL_outbound.agi,NORMAL-----LB-----${CONNECTEDLINE(name)})
+exten => 8379,n,Hangup()
+```
+
+Es el mismo patrón que Batch/Stream (`NoOp`/`GotoIf`/rama `human` sin cambios) — solo la línea de
+`Stasis(voxidet-ari)` en vez de `EAGI(amd_ia.agi)`/`AudioSocket(...)`.
+
+**Nunca probado contra Asterisk real todavía** — ver `CLAUDE.md` § "5. Modo ARI" para el detalle exacto
+de qué se validó (test sintético, no en vivo) y qué falta confirmar antes de usarlo con tráfico real.
 
 ---
 

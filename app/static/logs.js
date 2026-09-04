@@ -111,6 +111,8 @@ function buildRow(r) {
     ? '<span style="color:#06b6d4;font-size:.75rem">STREAM</span>'
     : r.mode === 'audiosocket'
     ? '<span style="color:#f59e0b;font-size:.75rem">AUDIOSOCKET</span>'
+    : r.mode === 'ari'
+    ? '<span style="color:#ec4899;font-size:.75rem">ARI ⚗️</span>'
     : '<span style="color:#94a3b8;font-size:.75rem">BATCH</span>';
   const _pmap = {
     'deepgramv2': ['#10b981', 'DG v2 ⚡'],

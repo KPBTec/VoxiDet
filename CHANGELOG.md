@@ -7,6 +7,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.28.0 — 2026-09-04
+
+- Nuevo (experimental): un modo alternativo de conexión con la central telefónica para los casos donde
+  "Audiosocket" no puede transferir la llamada al agente por una limitación de esa versión de Asterisk.
+  Solo para pruebas en una extensión nueva por ahora, no reemplaza nada de lo que ya funciona.
+
+---
+
 ## v1.27.10 — 2026-09-04
 
 - Nuevo: la pantalla de Logs en vivo ahora muestra y permite filtrar por el UniqueID real de la central

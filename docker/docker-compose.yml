@@ -138,6 +138,54 @@ services:
       - /opt/voxidet/logs:/srv/logs    # bind mount (no volumen nombrado) — fail2ban
                                        # corre en el host y necesita leer security.log directo
 
+  # Controlador ARI (EXPERIMENTAL, v1.28.0) — proceso APARTE del `api`, a
+  # propósito: mantiene una única conexión WebSocket persistente a Asterisk
+  # (app=voxidet-ari). Si corriera dentro de cada uno de los N workers de
+  # gunicorn del servicio `api`, Asterisk repartiría/duplicaría los eventos
+  # de Stasis entre esas N conexiones sin ninguna garantía de a cuál le
+  # toca cada llamada — mismo tipo de bug que ya encontramos DOS VECES hoy
+  # en código pensado para "un solo proceso" corriendo multiplicado (ver
+  # CHANGELOG v1.27.8/v1.27.9). Solo se levanta si ARI_URL/ARI_PASSWORD
+  # están configurados en credentials.conf — sin eso, el controlador loguea
+  # el motivo y no hace nada (ver app/ari/controller.py::run()). Comparte la
+  # misma imagen que `api` (mismo código, mismas dependencias) pero corre
+  # otro entrypoint, sin exponer ningún puerto propio — no sirve HTTP, solo
+  # habla hacia afuera (Asterisk, Redis, MySQL).
+  ari-controller:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: voxidet-ari-controller
+    restart: always
+    command: ["python3", "-m", "app.ari.controller"]
+    env_file: ../credentials.conf
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DB: voxidet_db
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      ARI_URL:      ${ARI_URL:-}
+      ARI_USER:     ${ARI_USER:-voxidet}
+      ARI_PASSWORD: ${ARI_PASSWORD:-}
+      ARI_APP:      ${ARI_APP:-voxidet-ari}
+      AUDIOSOCKET_HOST: ${AUDIOSOCKET_HOST:-}
+      AUDIOSOCKET_PORT: ${AUDIOSOCKET_PORT:-9099}
+      LOG_LEVEL: info
+      TZ: America/Lima
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - voxidet_internal
+    volumes:
+      - ../app:/srv/app
+
 volumes:
   mysql_data:
 

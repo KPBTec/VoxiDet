@@ -18,3 +18,6 @@ itsdangerous==2.1.2
 cryptography>=48.0.1    # CVE-2026-34180 (OpenSSL embebido vulnerable a lote de CVEs de jun-2026) + CVE-2026-26007 (subgrupo SECT) — 42.0.8 estaba afectado
 psutil==6.0.0
 bcrypt>=4.0
+websockets==17.1       # cliente WS del controlador ARI experimental (app/ari/controller.py) — ya venía
+                        # como dependencia transitiva de uvicorn[standard] (>=10.4), pineado explícito
+                        # acá porque ahora se importa directo, no solo lo usa uvicorn internamente

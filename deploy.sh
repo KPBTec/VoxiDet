@@ -316,6 +316,20 @@ INSTALL_SHERPA_LARGE=$INSTALL_SHERPA_LARGE
 # "límite de N conexiones concurrentes alcanzado" con tráfico real, no antes.
 # AUDIOSOCKET_MAX_CONNECTIONS=1000
 
+# Modo ARI (EXPERIMENTAL, v1.28.0) — SOLO para la extensión de prueba 8379,
+# nunca la extensión real de un cliente. Sin ARI_URL/ARI_PASSWORD, el
+# contenedor ari-controller arranca pero no hace nada (loguea el motivo y
+# espera). Ver README.md § "Modo ARI (experimental)" antes de configurar.
+# ARI_URL=http://IP_DEL_ASTERISK:8088
+# ARI_USER=voxidet
+# ARI_PASSWORD=
+# ARI_APP=voxidet-ari
+# Host:puerto (red interna) donde Asterisk debe conectarse de vuelta para
+# el audio — mismo servidor y puerto que AUDIOSOCKET_PORT de arriba, pero
+# acá hay que escribir el host explícito (lo usa un proceso servidor, no un
+# admin tipeando en el panel).
+# AUDIOSOCKET_HOST=10.100.10.15
+
 # ── Autotuneo de recursos (NO editar a mano) ─────────────────────────────────
 # deploy.sh calcula estos valores en cada corrida según CPU/RAM reales del
 # host — se sobrescriben solos, dejarlos vacíos.

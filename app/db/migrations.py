@@ -46,6 +46,7 @@ from app.db.logs import (
     ensure_mode_transcript_columns,
     ensure_layer2_calls_column,
     ensure_mode_audiosocket_enum,
+    ensure_mode_ari_enum,
 )
 from app.db.keywords import ensure_table as ensure_keywords_table
 from app.db.client_keywords import ensure_client_keywords_table
@@ -88,6 +89,7 @@ MIGRATIONS = [
     ("1.23.0", ensure_audit_log_table),
     ("1.25.0", ensure_sites_table),
     ("1.27.0", lambda: _run_all(ensure_mode_audiosocket_enum, ensure_amd_mode_audiosocket_width)),
+    ("1.28.0", ensure_mode_ari_enum),
 ]
 
 
