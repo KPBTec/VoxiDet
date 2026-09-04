@@ -7,6 +7,15 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.27.8 — 2026-09-03
+
+- Corregido: bajo tráfico alto con transcripción local (Sherpa/Vosk), el servidor podía llegar a usar el
+  100% del procesador en todos sus núcleos, afectando la velocidad de detección de todos los clientes.
+  Corregido el límite de trabajos simultáneos para que se ajuste a la cantidad real de procesos del
+  servidor.
+
+---
+
 ## v1.27.7 — 2026-09-03
 
 - Corregido: el fix anterior de Audiosocket no funcionaba en todas las centrales telefónicas (dependía

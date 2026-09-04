@@ -154,8 +154,22 @@ _sherpa_large_asr: SherpaASR | None = None   # whisper-large-v3 completo (opt-in
 # así que su semáforo permite más concurrencia. Comparten `_sherpa_asr` y
 # `_sherpa_large_asr` el mismo semáforo — compiten por el mismo presupuesto de
 # CPU del host, no tiene sentido sumarles cupos independientes.
-_SHERPA_CONCURRENCY = max(1, (os.cpu_count() or 4) // 4)
-_VOSK_CONCURRENCY   = max(2, os.cpu_count() or 4)
+#
+# CORREGIDO (encontrado por saturación real de CPU en producción, los 12 cores
+# al ~97% con muchos workers en simultáneo corriendo Sherpa): esta cuenta
+# original dividía por 4 usando LOS CORES DE TODA LA MÁQUINA, pero el
+# semáforo es un asyncio.Semaphore normal — vive DENTRO de cada proceso
+# worker de gunicorn, no se comparte entre ellos. Con N workers (gunicorn
+# --workers, ver UVICORN_WORKERS), el techo REAL de la máquina es
+# _SHERPA_CONCURRENCY multiplicado por N, no el valor de por sí — con 12
+# cores y 11 workers, el cálculo viejo permitía hasta 11×3 = 33
+# transcripciones Sherpa simultáneas (cada una con 4 threads) sobre solo 12
+# cores físicos. Dividir también por la cantidad de workers hace que el
+# techo AGREGADO de toda la máquina quede cerca de los cores reales, no un
+# múltiplo de ellos.
+_WORKER_COUNT = max(1, int(os.environ.get("UVICORN_WORKERS", "1") or "1"))
+_SHERPA_CONCURRENCY = max(1, ((os.cpu_count() or 4) // 4) // _WORKER_COUNT)
+_VOSK_CONCURRENCY   = max(1, (os.cpu_count() or 4) // _WORKER_COUNT)
 _sherpa_semaphore = asyncio.Semaphore(_SHERPA_CONCURRENCY)
 _vosk_semaphore   = asyncio.Semaphore(_VOSK_CONCURRENCY)
 
