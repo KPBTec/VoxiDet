@@ -7,6 +7,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.28.7 — 2026-09-21
+
+- **Corregido (urgente)**: la versión anterior (v1.28.6) podía cortar la actualización a la mitad sin
+  aviso en ciertos servidores. Corregido y verificado. Si tu actualización a v1.28.6 se cortó, correr
+  `deploy.sh` de nuevo con esta versión la completa normalmente.
+
+---
+
 ## v1.28.6 — 2026-09-21
 
 - Corregido: al validar el fix de la versión anterior en un servidor real, se encontró que faltaba una

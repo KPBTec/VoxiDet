@@ -738,19 +738,26 @@ if command -v nft &>/dev/null; then
 */5 * * * * voxidet /usr/bin/python3 $DEPLOY_DIR/scripts/gen_nftables.py >> /var/log/voxidet-fw.log 2>&1
 EOF
 
-    # Aplicar reglas iniciales. build_nftables() ya devuelve un fragmento
-    # válido incluso sin reglas configuradas (solo un comentario) — así que
-    # gen_nftables.py SIEMPRE sale con código 0 salvo que algo esté
-    # realmente roto (DB inaccesible, falta pymysql, sintaxis nft inválida).
-    # Antes esto se silenciaba con "2>/dev/null" y un mensaje que sonaba a
-    # "todo normal" — enmascaró en producción tanto el bug de permisos como
-    # el de pymysql faltante durante meses sin que nadie lo notara. Ahora se
-    # captura y se muestra el error real si falla.
-    _gn_out=$(python3 "$DEPLOY_DIR/scripts/gen_nftables.py" 2>&1)
-    if [[ $? -eq 0 ]]; then
+    # Aplicar reglas iniciales. A esta altura del script Docker Compose
+    # TODAVÍA no levantó MySQL (eso corre más abajo), así que un fallo de
+    # "DB inaccesible" acá es esperado y normal en cualquier instalación —
+    # el cron de cada 5 min lo reintenta una vez que la DB esté arriba.
+    # Antes esto se silenciaba con "2>/dev/null", indistinguible de OTROS
+    # fallos reales (permiso denegado a credentials.conf, pymysql faltante)
+    # que enmascaró en producción durante meses. Ahora se muestra el error
+    # real siempre, aclarando en el mensaje que "DB inaccesible" es normal
+    # acá y cualquier otra cosa no.
+    #
+    # IMPORTANTE (bug real, encontrado en producción horas después de
+    # publicar el "fix" anterior): con `set -e` activo, "var=$(cmd)" en una
+    # sentencia separada del "if" corta TODO el script en el momento en que
+    # cmd falla — nunca se llega ni al "if" que sigue. Por eso la asignación
+    # tiene que ser la condición del "if" directamente (bash no aplica
+    # set -e a un comando usado como condición).
+    if _gn_out=$(python3 "$DEPLOY_DIR/scripts/gen_nftables.py" 2>&1); then
         ok "nftables aplicado"
     else
-        echo -e "${YELLOW}[!] gen_nftables.py falló — el firewall dinámico del panel no se está aplicando:${NC}"
+        info "gen_nftables.py: DB aún no disponible a esta altura del deploy (normal) u otro error — el cron reintenta cada 5 min. Salida:"
         echo "$_gn_out" | sed 's/^/      /'
     fi
 
@@ -829,8 +836,12 @@ EOF
     # sin jails procesados aún) y un crash real (ej. pymysql faltante, que
     # pasó desapercibido en producción hasta que se encontró junto con el
     # bug de permisos de credentials.conf) se veían exactamente igual antes.
-    _f2b_out=$(python3 "$DEPLOY_DIR/scripts/fail2ban_bridge.py" 2>&1)
-    if [[ $? -eq 0 ]]; then
+    # La asignación va como condición del "if" (no en una línea separada)
+    # a propósito — con `set -e` activo, un "var=$(cmd)" que falla en su
+    # propia línea corta TODO el script ahí mismo, antes de llegar a
+    # cualquier chequeo de $? que venga después (bug real que esto mismo
+    # causó en producción la primera vez que se escribió este fix).
+    if _f2b_out=$(python3 "$DEPLOY_DIR/scripts/fail2ban_bridge.py" 2>&1); then
         ok "fail2ban-status.json inicial escrito"
     else
         info "fail2ban_bridge.py: primera corrida no escribió estado (normal si fail2ban aún no procesó ningún jail) — el cron reintenta cada minuto. Si persiste, revisar:"
