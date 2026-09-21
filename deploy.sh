@@ -440,6 +440,17 @@ chmod 710     "$CREDS_DIR"  2>/dev/null || true
 chgrp voxidet "$CREDS_FILE" 2>/dev/null || true
 chmod 640     "$CREDS_FILE" 2>/dev/null || true
 
+# scripts/gen_nftables.py y scripts/fail2ban_bridge.py corren en el HOST (no
+# dentro de Docker, vía cron) e importan pymysql para leer la DB directo —
+# nunca hubo un paso que lo instalara a nivel de sistema (bug real encontrado
+# en producción junto con el de permisos de arriba: ambos scripts fallaban
+# en el import, silenciado por el "2>/dev/null" de más abajo, así que nunca
+# se notó). python3-pymysql (paquete de Debian/Ubuntu) en vez de pip: evita
+# depender de un venv que nadie gestiona para dos scripts sueltos.
+apt-get install -y --no-install-recommends python3-pymysql >/dev/null 2>&1 \
+    || yum install -y python3-PyMySQL >/dev/null 2>&1 \
+    || echo -e "${YELLOW}[!] No se pudo instalar python3-pymysql — gen_nftables.py y fail2ban_bridge.py (cron) fallarán${NC}"
+
 # /opt/voxidet pertenece a voxidet (no a root)
 mkdir -p "$DEPLOY_DIR"
 chown -R voxidet:voxidet "$DEPLOY_DIR" 2>/dev/null || true
@@ -727,9 +738,21 @@ if command -v nft &>/dev/null; then
 */5 * * * * voxidet /usr/bin/python3 $DEPLOY_DIR/scripts/gen_nftables.py >> /var/log/voxidet-fw.log 2>&1
 EOF
 
-    # Aplicar reglas iniciales (sin bloquear nada — tabla vacía)
-    python3 "$DEPLOY_DIR/scripts/gen_nftables.py" 2>/dev/null && ok "nftables aplicado" \
-        || info "nftables: tabla vacía (sin reglas configuradas aún)"
+    # Aplicar reglas iniciales. build_nftables() ya devuelve un fragmento
+    # válido incluso sin reglas configuradas (solo un comentario) — así que
+    # gen_nftables.py SIEMPRE sale con código 0 salvo que algo esté
+    # realmente roto (DB inaccesible, falta pymysql, sintaxis nft inválida).
+    # Antes esto se silenciaba con "2>/dev/null" y un mensaje que sonaba a
+    # "todo normal" — enmascaró en producción tanto el bug de permisos como
+    # el de pymysql faltante durante meses sin que nadie lo notara. Ahora se
+    # captura y se muestra el error real si falla.
+    _gn_out=$(python3 "$DEPLOY_DIR/scripts/gen_nftables.py" 2>&1)
+    if [[ $? -eq 0 ]]; then
+        ok "nftables aplicado"
+    else
+        echo -e "${YELLOW}[!] gen_nftables.py falló — el firewall dinámico del panel no se está aplicando:${NC}"
+        echo "$_gn_out" | sed 's/^/      /'
+    fi
 
     systemctl enable --now nftables 2>/dev/null || true
     ok "Firewall listo — gestionar desde el panel admin en /firewall"
@@ -801,8 +824,18 @@ if command -v fail2ban-client &>/dev/null; then
 # VoxiDet — procesa unbans y publica estado de fail2ban cada minuto
 * * * * * root /usr/bin/python3 $DEPLOY_DIR/scripts/fail2ban_bridge.py >> /var/log/voxidet-fail2ban.log 2>&1
 EOF
-    python3 "$DEPLOY_DIR/scripts/fail2ban_bridge.py" 2>/dev/null && ok "fail2ban-status.json inicial escrito" \
-        || info "fail2ban_bridge.py: primera corrida falló (normal si fail2ban aún no procesó ningún jail) — el cron reintenta cada minuto"
+    # Igual que con gen_nftables.py arriba: ya no se silencia el error real
+    # con "2>/dev/null" — una falla legítima de primera corrida (fail2ban
+    # sin jails procesados aún) y un crash real (ej. pymysql faltante, que
+    # pasó desapercibido en producción hasta que se encontró junto con el
+    # bug de permisos de credentials.conf) se veían exactamente igual antes.
+    _f2b_out=$(python3 "$DEPLOY_DIR/scripts/fail2ban_bridge.py" 2>&1)
+    if [[ $? -eq 0 ]]; then
+        ok "fail2ban-status.json inicial escrito"
+    else
+        info "fail2ban_bridge.py: primera corrida no escribió estado (normal si fail2ban aún no procesó ningún jail) — el cron reintenta cada minuto. Si persiste, revisar:"
+        echo "$_f2b_out" | sed 's/^/      /'
+    fi
 else
     echo -e "${YELLOW}[!] fail2ban no disponible — sin protección de fuerza bruta${NC}"
 fi
