@@ -7,6 +7,13 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.28.8 — 2026-09-21
+
+- Corregido: el firewall dinámico del panel no lograba aplicarse en instalaciones sin reglas
+  configuradas todavía. Corregido y verificado. Aplicar corriendo `deploy.sh` de nuevo.
+
+---
+
 ## v1.28.7 — 2026-09-21
 
 - **Corregido (urgente)**: la versión anterior (v1.28.6) podía cortar la actualización a la mitad sin

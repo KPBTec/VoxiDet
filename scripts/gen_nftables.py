@@ -118,46 +118,52 @@ def build_nftables(rules: list[dict]) -> str:
 
     if not (deny_all or allow_ssh or allow_api):
         lines.append("# Sin reglas configuradas en el panel")
-        return "\n".join(lines)
+    else:
+        # define — no "set": un set de nftables es un objeto que solo puede
+        # declararse a nivel de tabla, no dentro de un chain{} (donde queda
+        # este fragmento incluido). define es sustitución de texto, válida
+        # en cualquier lugar — mismo mecanismo que "define carrier_ips =
+        # {...}" en los fragmentos de VoxiKam.
+        if deny_all:
+            ips = ", ".join(deny_all)
+            lines.append(f"define blocked_ips = {{ {ips} }}")
+        if allow_ssh:
+            ips = ", ".join(allow_ssh)
+            lines.append(f"define ssh_allowed = {{ {ips} }}")
+        if allow_api:
+            ips = ", ".join(allow_api)
+            lines.append(f"define api_allowed = {{ {ips} }}")
+        lines.append("")
 
-    # define — no "set": un set de nftables es un objeto que solo puede
-    # declararse a nivel de tabla, no dentro de un chain{} (donde queda este
-    # fragmento incluido). define es sustitución de texto, válida en
-    # cualquier lugar — mismo mecanismo que "define carrier_ips = {...}" en
-    # los fragmentos de VoxiKam.
-    if deny_all:
-        ips = ", ".join(deny_all)
-        lines.append(f"define blocked_ips = {{ {ips} }}")
-    if allow_ssh:
-        ips = ", ".join(allow_ssh)
-        lines.append(f"define ssh_allowed = {{ {ips} }}")
-    if allow_api:
-        ips = ", ".join(allow_api)
-        lines.append(f"define api_allowed = {{ {ips} }}")
-    lines.append("")
+        # Bloqueo de IPs denegadas (prevalece sobre todo)
+        if deny_all:
+            lines += ["# IPs bloqueadas explicitamente", "ip saddr $blocked_ips drop", ""]
 
-    # Bloqueo de IPs denegadas (prevalece sobre todo)
-    if deny_all:
-        lines += ["# IPs bloqueadas explicitamente", "ip saddr $blocked_ips drop", ""]
+        ssh_ports = "{ " + ", ".join(SSH_PORTS) + " }"
+        if allow_ssh:
+            lines += [
+                "# SSH — solo IPs autorizadas (panel)",
+                f"tcp dport {ssh_ports} ip saddr $ssh_allowed accept",
+                f"tcp dport {ssh_ports} drop",
+                "",
+            ]
 
-    ssh_ports = "{ " + ", ".join(SSH_PORTS) + " }"
-    if allow_ssh:
-        lines += [
-            "# SSH — solo IPs autorizadas (panel)",
-            f"tcp dport {ssh_ports} ip saddr $ssh_allowed accept",
-            f"tcp dport {ssh_ports} drop",
-            "",
-        ]
+        if allow_api:
+            lines += [
+                "# API — solo IPs de la whitelist (panel)",
+                f"tcp dport {API_PORT} ip saddr $api_allowed accept",
+                f"tcp dport {API_PORT} drop",
+                "",
+            ]
 
-    if allow_api:
-        lines += [
-            "# API — solo IPs de la whitelist (panel)",
-            f"tcp dport {API_PORT} ip saddr $api_allowed accept",
-            f"tcp dport {API_PORT} drop",
-            "",
-        ]
-
-    return "\n".join(lines)
+    # nft trata un archivo `include`ado sin salto de línea final como
+    # inválido cuando termina en un comentario ("syntax error, unexpected
+    # junk") — confirmado en producción con el caso "sin reglas" (el único
+    # que terminaba en comentario sin una línea vacía después). Se normaliza
+    # acá, en un solo punto de retorno, para que ningún branch futuro pueda
+    # reintroducir el mismo bug.
+    content = "\n".join(lines)
+    return content if content.endswith("\n") else content + "\n"
 
 
 def apply(nft_content: str) -> bool:
