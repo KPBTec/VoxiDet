@@ -7,6 +7,15 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.28.5 — 2026-09-21
+
+- Corregido: el firewall del servidor (nftables) podía fallar al reiniciarse por un permiso mal
+  configurado que impedía que las reglas del panel Admin → Firewall se aplicaran automáticamente cada
+  5 minutos como estaba previsto. Recomendado revisar las reglas de Firewall configuradas en el panel
+  después de actualizar. Aplicar corriendo `deploy.sh` de nuevo.
+
+---
+
 ## v1.28.4 — 2026-09-21
 
 - Corregido: el ajuste de memoria de la versión anterior (v1.28.3) no tenía efecto real una vez

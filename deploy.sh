@@ -423,6 +423,23 @@ if command -v docker &>/dev/null; then
     usermod -aG docker voxidet 2>/dev/null || true
 fi
 
+# Bug real encontrado en producción (host qub-amd, 2026-09-21): $CREDS_DIR
+# queda en 700 root:root (arriba, generación/migración de credenciales) — el
+# usuario 'voxidet' (dueño del cron de scripts/gen_nftables.py) nunca pudo
+# ni siquiera hacer stat() de credentials.conf ("Permission denied"), así que
+# gen_nftables.py fallaba en cada corrida ANTES de leer la DB, sin llegar
+# nunca a sobreescribir /etc/nftables.d/voxidet.nft con el fragmento
+# correcto — ese archivo quedaba con el contenido de una instalación vieja
+# (o el placeholder) indefinidamente, sin que nada lo notara (el cron
+# redirige su salida a un log, no hay alerta si falla). Fix: dar al GRUPO
+# voxidet (creado junto con el usuario) permiso de traversar el directorio
+# (--x, no listar) y leer SOLO el archivo de credenciales — no se abre el
+# directorio completo porque ahí también podrían vivir otros secretos.
+chgrp voxidet "$CREDS_DIR"  2>/dev/null || true
+chmod 710     "$CREDS_DIR"  2>/dev/null || true
+chgrp voxidet "$CREDS_FILE" 2>/dev/null || true
+chmod 640     "$CREDS_FILE" 2>/dev/null || true
+
 # /opt/voxidet pertenece a voxidet (no a root)
 mkdir -p "$DEPLOY_DIR"
 chown -R voxidet:voxidet "$DEPLOY_DIR" 2>/dev/null || true
