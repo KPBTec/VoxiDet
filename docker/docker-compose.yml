@@ -100,6 +100,14 @@ services:
           memory: 512M
     environment:
       UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+      # glibc reserva un "arena" de memoria por cada hilo interno que usan
+      # numpy/ONNXRuntime(Sherpa)/PyTorch(Silero) — con varios workers, esos
+      # arenas se multiplican y generan memoria reservada que nunca se libera
+      # al SO aunque el proceso ya no la use. Limitar a 2 arenas por proceso
+      # reduce ese desperdicio sin tocar código (ajuste estándar para
+      # contenedores Python con librerías numéricas). No reduce el modelo en
+      # memoria, reduce el "colchón" extra que glibc reserva alrededor de él.
+      MALLOC_ARENA_MAX: 2
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_DB: voxidet_db
@@ -159,7 +167,19 @@ services:
     restart: always
     command: ["python3", "-m", "app.ari.controller"]
     env_file: ../credentials.conf
+    deploy:
+      resources:
+        limits:
+          # En modo "audiosocket" (default) este proceso NO carga modelos y
+          # pesa poco. En modo "rtp" SÍ carga Vosk+Sherpa+Silero completos
+          # (igual que un worker de "api"), y ya medimos en producción que
+          # un worker con esos 3 motores activos usa 3.4-4.1GB de RAM real.
+          # 5G da margen para ese caso sin dejarlo sin límite. Si activan
+          # ARI_MEDIA_MODE=rtp, revisar `docker stats` tras la primera
+          # llamada real para confirmar que no se acerca al límite.
+          memory: 5G
     environment:
+      MALLOC_ARENA_MAX: 2
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_DB: voxidet_db
