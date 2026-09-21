@@ -7,6 +7,15 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.28.2 — 2026-09-21
+
+- Corregido: bajo tráfico real, el servidor podía quedarse casi sin memoria disponible y empezar a usar
+  espacio de disco como memoria (mucho más lento) — el cálculo automático de cuántos procesos levantar
+  subestimaba cuánta memoria necesita cada uno en la práctica. Corregido con datos reales medidos en
+  producción — para aplicarlo en un servidor ya instalado, correr `deploy.sh` de nuevo.
+
+---
+
 ## v1.28.1 — 2026-09-04
 
 - Mejorado: la configuración del modo ARI (experimental) ahora se puede hacer desde el panel

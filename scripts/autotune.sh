@@ -52,7 +52,23 @@ log "Host detectado: ${HOST_CPUS} vCPU, ${HOST_RAM_MB}MB RAM"
 MODEL_SIZE_MB=$(du -sm "$MODELS_BASE" 2>/dev/null | awk '{print $1}')
 [[ -z "$MODEL_SIZE_MB" || "$MODEL_SIZE_MB" -eq 0 ]] && MODEL_SIZE_MB=1400
 SHARED_MODEL_MB=$(( MODEL_SIZE_MB * 13 / 10 ))
-PER_WORKER_MB=250
+# Recalibrado (encontrado en producción real, qub-amd, 2026-09-21): con
+# PER_WORKER_MB=250 el host terminó con 12 workers, el contenedor `api`
+# pegado al 100% de su límite (8.83GiB) y el swap casi lleno con apenas 25
+# llamadas concurrentes de Vicidial — `docker exec api ps`/psutil mostró
+# cada worker con varios GB de RSS real (Vosk/Sherpa/Silero + numpy/torch
+# cargados por proceso — el modelo base se comparte por copy-on-write, pero
+# los buffers de trabajo de cada motor NO, cada worker paga eso aparte). 250
+# subestimaba el costo real por worker en un orden de magnitud. Con este
+# valor nuevo el host de la incidencia (12 vCPU, ~11.7GB RAM) calcula bastante
+# menos workers — menos concurrencia de procesos, pero sin swap thrashing;
+# el semáforo de concurrencia de Sherpa/Vosk (ver local_asr.py, v1.27.8/9) ya
+# limita cuánto trabajo pesado corre a la vez POR worker, así que menos
+# workers más "gordos" sigue rindiendo razonable sin duplicar tanto overhead
+# de proceso. Si en un host distinto esto sigue quedando corto/holgado,
+# ajustar de nuevo con datos reales (`docker exec api python3 -c "import
+# psutil; ..."`, ver conversación de esta incidencia), no a ojo.
+PER_WORKER_MB=900
 
 RESERVED_MB=$(( HOST_RAM_MB / 4 ))
 [[ $RESERVED_MB -lt 1024 ]] && RESERVED_MB=1024
