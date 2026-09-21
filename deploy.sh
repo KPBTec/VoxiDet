@@ -670,8 +670,15 @@ if ! command -v nft &>/dev/null; then
 fi
 
 if command -v nft &>/dev/null; then
-    # Crear directorio para reglas parciales
+    # Crear directorio para reglas parciales. root:voxidet 775 — documentado
+    # en nftables/README.md pero nunca aplicado acá (bug real, encontrado en
+    # producción): el usuario 'voxidet' (dueño del cron que regenera este
+    # fragmento) nunca pudo escribir el archivo, ni siquiera con los otros
+    # bugs de esta misma cadena ya corregidos (permisos de credentials.conf,
+    # pymysql faltante, newline final del fragmento).
     mkdir -p /etc/nftables.d
+    chown root:voxidet /etc/nftables.d
+    chmod 775 /etc/nftables.d
 
     # Detección de puerto SSH — sshd_config primero (autoritativo, mismo orden
     # que detect_ssh_ports() en gen_nftables.py). "ss | grep sshd" como único
@@ -722,6 +729,12 @@ if command -v nft &>/dev/null; then
     # gen_nftables.py aún no pudo escribir el fragmento real (p.ej. DB todavía
     # no está arriba porque Docker Compose corre después de este bloque).
     [[ -f /etc/nftables.d/voxidet.nft ]] || cp "$SRC_DIR/nftables/nftables.d/voxidet.nft" /etc/nftables.d/voxidet.nft
+    # voxidet:voxidet siempre — tanto para el placeholder recién copiado
+    # (queda root:root por defecto, un "cp" corriendo como root) como para
+    # un archivo de una instalación vieja que haya quedado con dueño root
+    # por el mismo motivo. Sin esto, el cron (corre como voxidet) nunca
+    # puede sobreescribirlo — bug real, encontrado en producción.
+    chown voxidet:voxidet /etc/nftables.d/voxidet.nft
 
     # Sudoers — copiado desde el repo (sudoers/), no generado inline
     cp "$SRC_DIR/sudoers/voxidet" /etc/sudoers.d/voxidet
@@ -754,7 +767,13 @@ EOF
     # cmd falla — nunca se llega ni al "if" que sigue. Por eso la asignación
     # tiene que ser la condición del "if" directamente (bash no aplica
     # set -e a un comando usado como condición).
-    if _gn_out=$(python3 "$DEPLOY_DIR/scripts/gen_nftables.py" 2>&1); then
+    # sudo -u voxidet (no root) — mismo usuario que el cron. Corriéndolo como
+    # root acá dejaría el archivo root:root de nuevo (write_text() no cambia
+    # dueño de un archivo existente, y un archivo nuevo hereda el uid/gid de
+    # quien lo crea) — el cron de 5 min, corriendo como voxidet, volvería a
+    # fallar al intentar sobreescribirlo. Consistencia total: SIEMPRE
+    # voxidet, nunca root, para este archivo.
+    if _gn_out=$(sudo -u voxidet python3 "$DEPLOY_DIR/scripts/gen_nftables.py" 2>&1); then
         ok "nftables aplicado"
     else
         info "gen_nftables.py: DB aún no disponible a esta altura del deploy (normal) u otro error — el cron reintenta cada 5 min. Salida:"
