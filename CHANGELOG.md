@@ -7,6 +7,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.28.4 — 2026-09-21
+
+- Corregido: el ajuste de memoria de la versión anterior (v1.28.3) no tenía efecto real una vez
+  probado a fondo — reemplazado por uno verificado (cambio del gestor de memoria interno del proceso).
+  Aplicar corriendo `deploy.sh` de nuevo.
+
+---
+
 ## v1.28.3 — 2026-09-21
 
 - Mejorado: ajuste de memoria adicional para reducir el consumo real del servicio (no solo cuántos

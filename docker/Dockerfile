@@ -10,7 +10,33 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libsndfile1 \
     ffmpeg \
     libgomp1 \
+    libjemalloc2 \
     && rm -rf /var/lib/apt/lists/*
+
+# jemalloc reemplaza el malloc() de glibc para todo el proceso: fragmenta
+# mucho menos que glibc en cargas Python+numérico multi-hilo (numpy/
+# ONNXRuntime/PyTorch), que es exactamente el patrón de cada worker acá.
+# Medido en producción (ver CHANGELOG.md v1.28.2/v1.28.3).
+#
+# IMPORTANTE — una vez que jemalloc queda activo por LD_PRELOAD, glibc deja
+# de manejar las asignaciones reales del proceso. Esto vuelve inútiles dos
+# mecanismos glibc-específicos que se habían probado antes: MALLOC_ARENA_MAX
+# (glibc ignora ese env var una vez que jemalloc tiene el malloc()) y
+# malloc_trim() llamado manualmente (verificado con dlsym: el símbolo resuelve
+# a la implementación de glibc, que queda operando sobre un heap vacío ya que
+# jemalloc nunca lo usa — sería un no-op silencioso). Se reemplazan ambos por
+# la configuración NATIVA de jemalloc via MALLOC_CONF:
+#   - narenas:2     → mismo objetivo que tenía MALLOC_ARENA_MAX=2 (menos
+#                     arenas = menos memoria de sobra reservada por hilo),
+#                     pero en el sistema que realmente maneja la memoria.
+#   - dirty_decay_ms:1000 / muzzy_decay_ms:1000 → jemalloc ya purga solo
+#                     páginas libres de vuelta al SO (default: cada 10s);
+#                     se baja a 1s porque el patrón acá es de picos cortos
+#                     por llamada (buffers de audio + tensores de inferencia)
+#                     seguidos de inactividad — conviene devolver esa memoria
+#                     rápido en vez de esperar 10s "por si se reusa".
+ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+ENV MALLOC_CONF=narenas:2,dirty_decay_ms:1000,muzzy_decay_ms:1000
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
