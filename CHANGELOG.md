@@ -7,6 +7,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.29.1 — 2026-09-21
+
+- **Corregido (urgente)**: al usar la opción "Transcripción directa" agregada en la versión anterior,
+  el panel podía dar un error interno del servidor. Corregido y verificado. Aplicar corriendo
+  `deploy.sh` de nuevo.
+
+---
+
 ## v1.29.0 — 2026-09-21
 
 - Nuevo: tres opciones configurables por cliente en el panel (Clientes → fila de cada cliente):

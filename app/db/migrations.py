@@ -33,6 +33,7 @@ from app.db.clients import (
     ensure_amd_bias_column,
     ensure_amd_mode_audiosocket_width,
     ensure_detection_mode_column,
+    ensure_detection_mode_width,
     ensure_record_seconds_column,
     ensure_fallback_enabled_column,
 )
@@ -96,6 +97,7 @@ MIGRATIONS = [
     ("1.29.0", lambda: _run_all(
         ensure_detection_mode_column, ensure_record_seconds_column, ensure_fallback_enabled_column,
     )),
+    ("1.29.1", ensure_detection_mode_width),
 ]
 
 

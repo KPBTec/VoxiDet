@@ -143,10 +143,27 @@ async def ensure_detection_mode_column() -> None:
     try:
         async with get_db() as db:
             await db.execute(text(
-                "ALTER TABLE clients ADD COLUMN detection_mode VARCHAR(20) NOT NULL DEFAULT 'energia_primero'"
+                "ALTER TABLE clients ADD COLUMN detection_mode VARCHAR(32) NOT NULL DEFAULT 'energia_primero'"
             ))
     except Exception:
         pass  # ya existe
+
+
+async def ensure_detection_mode_width() -> None:
+    """Migración de emergencia (mismo día que ensure_detection_mode_column):
+    'transcripcion_directa' son 21 caracteres — no entraba en el VARCHAR(20)
+    original, y a diferencia de amd_mode (que MySQL truncó en silencio, ver
+    ensure_amd_mode_audiosocket_width) acá el modo estricto de MySQL en este
+    servidor lo rechazó de frente con error 1406 al primer clic real en el
+    panel ("Data too long for column 'detection_mode'"). Ensanchado a 32 con
+    margen real esta vez."""
+    try:
+        async with get_db() as db:
+            await db.execute(text(
+                "ALTER TABLE clients MODIFY COLUMN detection_mode VARCHAR(32) NOT NULL DEFAULT 'energia_primero'"
+            ))
+    except Exception:
+        pass
 
 
 async def set_detection_mode(client_id: int, mode: str) -> None:
