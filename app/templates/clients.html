@@ -228,6 +228,31 @@
            class="btn btn-sm btn-ghost" title="Editar keywords de este cliente"
            style="font-size:.72rem;">KW</a>
         {% endif %}
+        <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/detection-mode" style="display:inline;">
+          <select name="mode" onchange="this.form.submit()"
+                  title="Energía primero (default): la detección rápida por volumen/silencio decide primero, y solo transcribe si es inconclusa. Transcripción directa: se salta ese chequeo rápido y siempre transcribe los primeros segundos (record_seconds) para decidir leyendo el texto — más costo por llamada, nunca decide solo por energía."
+                  style="background:transparent; border:1px solid var(--border); border-radius:4px; font-size:.72rem; padding:.15rem .3rem; color:{{ 'var(--signal)' if c.detection_mode == 'transcripcion_directa' else 'var(--text)' }};">
+            <option value="energia_primero"     {% if c.detection_mode != 'transcripcion_directa' %}selected{% endif %}>Energía primero</option>
+            <option value="transcripcion_directa" {% if c.detection_mode == 'transcripcion_directa' %}selected{% endif %}>Transcripción directa</option>
+          </select>
+        </form>
+        <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/record-seconds" style="display:inline;">
+          <select name="seconds" onchange="this.form.submit()"
+                  title="Segundos que graba Asterisk antes de mandar el audio al servidor — más segundos da más contexto para transcribir, pero tarda más en decidir."
+                  style="background:transparent; border:1px solid var(--border); border-radius:4px; font-size:.72rem; padding:.15rem .3rem; color:var(--text);">
+            {% for s in [2,3,4,5,6] %}
+            <option value="{{ s }}" {% if (c.record_seconds or 3) == s %}selected{% endif %}>{{ s }}s</option>
+            {% endfor %}
+          </select>
+        </form>
+        <form method="post" action="{{ admin_prefix }}/clients/{{ c.id }}/fallback" style="display:inline;">
+          <select name="enabled" onchange="this.form.submit()"
+                  title="Activado (default): si el proveedor elegido no reconoce nada, prueba automáticamente el siguiente proveedor disponible. Desactivado: si el proveedor elegido no reconoce nada, el resultado queda directo como no reconocido (UNKNOWN) — evita que un proveedor de respaldo (ej. Sherpa) invente texto en audio donde el principal ya determinó que no hay nada."
+                  style="background:transparent; border:1px solid var(--border); border-radius:4px; font-size:.72rem; padding:.15rem .3rem; color:{{ 'var(--text)' if (c.fallback_enabled | default(1)) else 'var(--red)' }};">
+            <option value="1" {% if c.fallback_enabled | default(1) %}selected{% endif %}>Failover ON</option>
+            <option value="0" {% if not (c.fallback_enabled | default(1)) %}selected{% endif %}>Failover OFF</option>
+          </select>
+        </form>
       </td>
     </tr>
     {% else %}

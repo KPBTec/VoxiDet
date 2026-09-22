@@ -32,6 +32,9 @@ from app.db.clients import (
     ensure_amd_mode_column,
     ensure_amd_bias_column,
     ensure_amd_mode_audiosocket_width,
+    ensure_detection_mode_column,
+    ensure_record_seconds_column,
+    ensure_fallback_enabled_column,
 )
 from app.db.admin_users import ensure_admin_users_table
 from app.db.firewall import ensure_firewall_table, ensure_fail2ban_unban_table
@@ -90,6 +93,9 @@ MIGRATIONS = [
     ("1.25.0", ensure_sites_table),
     ("1.27.0", lambda: _run_all(ensure_mode_audiosocket_enum, ensure_amd_mode_audiosocket_width)),
     ("1.28.0", ensure_mode_ari_enum),
+    ("1.29.0", lambda: _run_all(
+        ensure_detection_mode_column, ensure_record_seconds_column, ensure_fallback_enabled_column,
+    )),
 ]
 
 

@@ -23,6 +23,11 @@ _SERVER  = "__SERVER__"
 _API_KEY = "__APIKEY__"
 _VERSION = "__VERSION__"
 _TIMEOUT = 8
+# Cuánto graba _run_batch() antes de mandar el audio a /amd — actualizado por
+# _check_server() en cada llamada desde clients.record_seconds (panel admin).
+# 2500 acá es solo el valor de arranque por si /amd/check falla (mismo valor
+# fijo que existía antes de que esto fuera configurable por cliente).
+_RECORD_MS = 2500
 # Python urllib manda "Python-urllib/3.x" como User-Agent por default si no
 # se lo pisa — es una de las firmas de "script genérico" más comunes que
 # Cloudflare (Bot Fight Mode / WAF) bloquea automáticamente antes de que la
@@ -63,7 +68,11 @@ def _record(path, fmt, esc, ms, sil):
 # ── Check mode + auto-update ─────────────────────────────────────────────────
 
 def _check_server():
-    '''Consulta /amd/check, devuelve (mode, need_update).'''
+    '''Consulta /amd/check, devuelve (mode, need_update). De paso actualiza
+    _RECORD_MS (global) con clients.record_seconds del panel — si la request
+    falla, _RECORD_MS se queda con lo que ya tenía (2500 por defecto en la
+    primera llamada del proceso).'''
+    global _RECORD_MS
     try:
         req = Request(
             f"{_SERVER}/amd/check",
@@ -74,6 +83,10 @@ def _check_server():
         mode        = data.get("mode", "batch")
         server_ver  = data.get("version", "")
         need_update = bool(server_ver and server_ver != _VERSION)
+        try:
+            _RECORD_MS = int(data.get("record_ms") or _RECORD_MS)
+        except (TypeError, ValueError):
+            pass
         return mode, need_update
     except Exception:
         return "batch", False
@@ -124,7 +137,7 @@ def _run_batch(uid, phone, lead_id, campaign_id, list_id):
         # propio análisis de energía clasifica bien lo que recibe, el problema
         # era recibir menos audio del real. Reportado en producción con más
         # agentes conectados (ver CHANGELOG).
-        _record(tmp, "wav", "#", 2500, 1500)
+        _record(tmp, "wav", "#", _RECORD_MS, 1500)
 
         if not os.path.exists(wav):
             _log("AMD-IA batch: no wav - UNKNOWN")

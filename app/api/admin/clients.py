@@ -18,6 +18,9 @@ from app.db.clients import (
     delete_client,
     set_amd_mode,
     set_amd_bias,
+    set_detection_mode,
+    set_record_seconds,
+    set_fallback_enabled,
 )
 from app.cache.client_cache import invalidate_api_key
 from app.db.audit import log_audit
@@ -179,6 +182,40 @@ async def set_amd_bias_action(request: Request, client_id: int, bias: str = Form
     if not get_session(request):
         return login_redirect(request)
     await set_amd_bias(client_id, bias)
+    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
+
+
+@router.post("/clients/{client_id}/detection-mode")
+async def set_detection_mode_action(request: Request, client_id: int, mode: str = Form(...)):
+    if not get_session(request):
+        return login_redirect(request)
+    old = await _get_client(client_id)
+    await set_detection_mode(client_id, mode)
+    if old:
+        await log_audit(_admin_user(request), client_id, "detection_mode", old.get("detection_mode"), mode)
+    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
+
+
+@router.post("/clients/{client_id}/record-seconds")
+async def set_record_seconds_action(request: Request, client_id: int, seconds: int = Form(...)):
+    if not get_session(request):
+        return login_redirect(request)
+    old = await _get_client(client_id)
+    await set_record_seconds(client_id, seconds)
+    if old:
+        await log_audit(_admin_user(request), client_id, "record_seconds", old.get("record_seconds"), seconds)
+    return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
+
+
+@router.post("/clients/{client_id}/fallback")
+async def set_fallback_enabled_action(request: Request, client_id: int, enabled: str = Form(...)):
+    if not get_session(request):
+        return login_redirect(request)
+    old = await _get_client(client_id)
+    new_val = enabled == "1"
+    await set_fallback_enabled(client_id, new_val)
+    if old:
+        await log_audit(_admin_user(request), client_id, "fallback_enabled", old.get("fallback_enabled"), new_val)
     return RedirectResponse(url=f"{settings.ADMIN_PREFIX}/clients", status_code=302)
 
 

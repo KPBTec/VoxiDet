@@ -58,7 +58,14 @@ class Settings(BaseSettings):
     MODELS_BASE: str = "/srv/models-local"
 
     # App
-    AUDIO_MAX_SECONDS: float = 3.0
+    # Techo global — debe ser >= el valor más alto seleccionable en
+    # clients.record_seconds (2-6, panel admin) o el servidor rechaza con
+    # HTTP 413 el audio de cualquier cliente configurado por encima de este
+    # valor (bug real evitado: subido de 3.0 a 6.0 al agregar record_seconds
+    # por cliente, ver CHANGELOG). No es un límite técnico duro, es una
+    # protección de tamaño de request — 6s a 8kHz/16bit son ~96KB, sin
+    # impacto de memoria real.
+    AUDIO_MAX_SECONDS: float = 6.0
     LOG_LEVEL: str  = "info"
     PUBLIC_URL: str = "http://localhost:8000"
 

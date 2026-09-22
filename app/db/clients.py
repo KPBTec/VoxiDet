@@ -130,11 +130,90 @@ async def set_amd_bias(client_id: int, bias: str) -> None:
     await _invalidate_by_id(client_id)
 
 
+async def ensure_detection_mode_column() -> None:
+    """Migración: agrega detection_mode (energia_primero/transcripcion_directa).
+
+    'energia_primero' (default, comportamiento histórico): capa 1 (energía,
+    sin transcribir) decide primero; si es inconclusa, recién ahí cae a capa 2
+    (transcripción real). 'transcripcion_directa': se salta la capa 1 siempre
+    y decide leyendo el texto transcripto desde el primer momento — pedido
+    explícito para clientes donde la heurística de energía por sí sola no da
+    suficiente confianza y prefieren pagar el costo de transcribir siempre.
+    """
+    try:
+        async with get_db() as db:
+            await db.execute(text(
+                "ALTER TABLE clients ADD COLUMN detection_mode VARCHAR(20) NOT NULL DEFAULT 'energia_primero'"
+            ))
+    except Exception:
+        pass  # ya existe
+
+
+async def set_detection_mode(client_id: int, mode: str) -> None:
+    if mode not in ("energia_primero", "transcripcion_directa"):
+        return
+    async with get_db() as db:
+        await db.execute(
+            text("UPDATE clients SET detection_mode=:m WHERE id=:id"),
+            {"m": mode, "id": client_id},
+        )
+    await _invalidate_by_id(client_id)
+
+
+async def ensure_record_seconds_column() -> None:
+    """Migración: agrega record_seconds (2-6, default 3 = comportamiento
+    histórico hardcodeado que tenía el AGI). Controla cuánto graba Asterisk
+    ANTES de mandar el audio al servidor — ver /amd/check y agi_template.py."""
+    try:
+        async with get_db() as db:
+            await db.execute(text(
+                "ALTER TABLE clients ADD COLUMN record_seconds TINYINT NOT NULL DEFAULT 3"
+            ))
+    except Exception:
+        pass  # ya existe
+
+
+async def set_record_seconds(client_id: int, seconds: int) -> None:
+    if seconds not in (2, 3, 4, 5, 6):
+        return
+    async with get_db() as db:
+        await db.execute(
+            text("UPDATE clients SET record_seconds=:s WHERE id=:id"),
+            {"s": seconds, "id": client_id},
+        )
+    await _invalidate_by_id(client_id)
+
+
+async def ensure_fallback_enabled_column() -> None:
+    """Migración: agrega fallback_enabled (default 1 = comportamiento
+    histórico). En 0, si el proveedor elegido del cliente falla/no reconoce
+    nada, el resultado queda UNKNOWN en vez de probar otros proveedores —
+    pedido explícito para evitar que Sherpa (u otro) "invente" texto en
+    llamadas donde el proveedor principal no encontró nada."""
+    try:
+        async with get_db() as db:
+            await db.execute(text(
+                "ALTER TABLE clients ADD COLUMN fallback_enabled TINYINT(1) NOT NULL DEFAULT 1"
+            ))
+    except Exception:
+        pass  # ya existe
+
+
+async def set_fallback_enabled(client_id: int, enabled: bool) -> None:
+    async with get_db() as db:
+        await db.execute(
+            text("UPDATE clients SET fallback_enabled=:e WHERE id=:id"),
+            {"e": 1 if enabled else 0, "id": client_id},
+        )
+    await _invalidate_by_id(client_id)
+
+
 async def get_client_by_apikey(api_key: str) -> dict | None:
     async with get_db() as db:
         result = await db.execute(
             text("""
-                SELECT id, name, active, daily_limit, allowed_ips, provider, keywords_mode, amd_mode, amd_bias
+                SELECT id, name, active, daily_limit, allowed_ips, provider, keywords_mode, amd_mode, amd_bias,
+                       detection_mode, record_seconds, fallback_enabled
                 FROM clients WHERE api_key = :key LIMIT 1
             """),
             {"key": api_key},
@@ -161,6 +240,7 @@ async def get_all_clients_with_stats(site_id: int | None = None) -> list[dict]:
         result = await db.execute(text("""
             SELECT c.id, c.name, c.active, c.daily_limit, c.allowed_ips,
                    c.provider, c.keywords_mode, c.amd_mode, c.amd_bias, c.install_token, c.created_at,
+                   c.detection_mode, c.record_seconds, c.fallback_enabled,
                    c.site_id, s.name AS site_name,
                    COALESCE(u.total_calls, 0)     AS today_calls,
                    COALESCE(u.human_count, 0)     AS today_human,

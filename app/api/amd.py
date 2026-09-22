@@ -57,7 +57,7 @@ async def amd_detect(
     Headers opcionales : X-Call-ID, X-Caller-ID, X-Lead-ID, X-Campaign-ID, X-List-ID
                          X-Param-1..4 (custom, uso genérico — X-Lead/Campaign/List-ID
                          tienen prioridad y se mapean igual que en modo stream)
-    Body               : WAV multipart, campo 'audio', máx 3s, 8kHz 16bit mono
+    Body               : WAV multipart, campo 'audio', máx AUDIO_MAX_SECONDS (6s), 8kHz 16bit mono
     """
     audio_bytes = await audio.read(_MAX_BYTES + 1)
     if len(audio_bytes) > _MAX_BYTES:
@@ -82,6 +82,8 @@ async def amd_detect(
             audio_bytes,
             provider=client.get("provider", "groq"),
             aggressive=client.get("amd_bias") == "aggressive",
+            detection_mode=client.get("detection_mode", "energia_primero"),
+            fallback_enabled=bool(client.get("fallback_enabled", 1)),
         )
     finally:
         active_calls -= 1
@@ -130,6 +132,7 @@ async def amd_detect(
         # Asterisk. La decisión de AMD ya está tomada, esto no la cambia.
         t = asyncio.create_task(_log_with_background_transcript(
             audio_bytes, client.get("provider", "groq"), _log_kwargs,
+            fallback_enabled=bool(client.get("fallback_enabled", 1)),
         ))
         t.add_done_callback(_log_task_exception)
     else:
@@ -143,11 +146,11 @@ async def amd_detect(
     }
 
 
-async def _log_with_background_transcript(audio_bytes, provider, log_kwargs):
+async def _log_with_background_transcript(audio_bytes, provider, log_kwargs, fallback_enabled=True):
     # active_providers no se pasa — transcribe_for_log() lo resuelve por su
     # cuenta (corre en una task de background, no bloquea la respuesta a
     # Asterisk, así que el costo de la consulta no afecta la latencia real).
-    used_provider, transcript = await transcribe_for_log(audio_bytes, provider)
+    used_provider, transcript = await transcribe_for_log(audio_bytes, provider, fallback_enabled=fallback_enabled)
     if used_provider:
         log_kwargs["provider"] = used_provider
     transcript = transcript[:200] if transcript else "[silencio]"
@@ -158,13 +161,18 @@ async def _log_with_background_transcript(audio_bytes, provider, log_kwargs):
 async def amd_check(client: dict = Depends(verify_client_readonly)):
     """
     El AGI llama este endpoint al inicio de cada llamada.
-    Devuelve el modo activo (batch/stream) y la versión del AGI en el servidor.
+    Devuelve el modo activo (batch/stream), la versión del AGI en el servidor,
+    y record_ms (clients.record_seconds*1000) — cuánto debe grabar el AGI
+    antes de mandar el audio a /amd (ver agi_template.py::_run_batch). Antes
+    era un valor fijo (2500ms) hardcodeado en el AGI, sin relación con
+    AUDIO_MAX_SECONDS del servidor.
     Si la versión difiere, el AGI se auto-actualiza vía /amd/update.
     No consume límite diario.
     """
     return {
-        "mode":    client.get("amd_mode", "batch"),
-        "version": _AGI_VERSION,
+        "mode":      client.get("amd_mode", "batch"),
+        "version":   _AGI_VERSION,
+        "record_ms": int(client.get("record_seconds", 3) or 3) * 1000,
     }
 
 

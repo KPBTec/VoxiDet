@@ -7,6 +7,19 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.29.0 — 2026-09-21
+
+- Nuevo: tres opciones configurables por cliente en el panel (Clientes → fila de cada cliente):
+  - **Modo de detección**: elegir si el chequeo rápido de volumen decide primero (default) o si
+    siempre se transcribe el audio antes de decidir.
+  - **Segundos a grabar**: de 2 a 6 segundos, antes era un valor fijo para todos.
+  - **Failover**: apagar el cambio automático a otro proveedor cuando el elegido no reconoce nada,
+    para evitar que un proveedor de respaldo "invente" texto en vez de reportar que no detectó nada.
+- Todos los clientes existentes siguen funcionando exactamente igual que antes salvo que se cambie
+  alguna de estas opciones a mano.
+
+---
+
 ## v1.28.9 — 2026-09-21
 
 - Corregido: otro permiso más en la misma cadena impedía que el firewall dinámico terminara de

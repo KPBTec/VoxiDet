@@ -790,6 +790,8 @@ async def detect(
     provider: str = "groq",
     active_providers: list[str] | None = None,
     aggressive: bool = False,
+    detection_mode: str = "energia_primero",
+    fallback_enabled: bool = True,
 ) -> dict:
     """
     provider: proveedor configurado por el cliente (panel admin) — se intenta
@@ -801,11 +803,24 @@ async def detect(
     aggressive: viene de clients.amd_bias == 'aggressive' — en transcripciones
     ambiguas de capa 2, devuelve UNKNOWN en vez de asumir VOICEMAIL (ver
     _classify_transcript). Default False = comportamiento histórico.
+    detection_mode: clients.detection_mode. 'energia_primero' (default):
+    capa 1 decide primero, capa 2 solo si es inconclusa (comportamiento
+    histórico). 'transcripcion_directa': se salta la capa 1 siempre — decide
+    leyendo el texto transcripto desde el primer momento (más costo por
+    llamada, pero nunca deja pasar una detección basada solo en energía).
+    fallback_enabled: clients.fallback_enabled. Default True (histórico): si
+    el proveedor elegido no reconoce nada, prueba el siguiente de la cadena.
+    En False, un proveedor sin resultado deja UNKNOWN directo — evita que un
+    proveedor de respaldo (ej. Sherpa, modelo generativo) "invente" texto en
+    audio que el proveedor principal ya determinó que no tiene nada.
     """
     t0 = time.monotonic()
 
-    result, energy_info = layer1_detect(audio_bytes)
-    layer = 1
+    if detection_mode == "transcripcion_directa":
+        result, energy_info, layer = None, {}, 2
+    else:
+        result, energy_info = layer1_detect(audio_bytes)
+        layer = 1
 
     transcript     = ""
     used_provider  = ""
@@ -819,7 +834,10 @@ async def detect(
         if active_providers is None:
             from app.db.providers import get_active_providers
             active_providers = await get_active_providers()
-        candidates = [provider] + _by_fallback_priority([p for p in active_providers if p != provider])
+        if fallback_enabled:
+            candidates = [provider] + _by_fallback_priority([p for p in active_providers if p != provider])
+        else:
+            candidates = [provider]
         # Saltar proveedores marcados como caídos recientemente (circuit
         # breaker, ver _mark_provider_down) — si TODOS están en cooldown, se
         # prueba la lista completa igual (mejor un intento con timeout
@@ -853,19 +871,27 @@ async def transcribe_for_log(
     audio_bytes: bytes,
     provider: str = "groq",
     active_providers: list[str] | None = None,
+    fallback_enabled: bool = True,
 ) -> tuple[str, str]:
     """
     Transcribe SIEMPRE, aunque la capa 1 ya haya decidido — pensada para
     correr en segundo plano (no bloquea la respuesta de AMDSTATUS a
     Asterisk) solo para dejar el transcript disponible en el log, que sirve
     como registro/auditoría de cada llamada. Mismo fallback que detect():
-    proveedor del cliente primero, y si falla, otro proveedor activo.
+    proveedor del cliente primero, y si falla, otro proveedor activo — salvo
+    que fallback_enabled sea False (clients.fallback_enabled), en cuyo caso
+    solo se prueba el proveedor del cliente. Sin esto, un cliente que apagó
+    el failover para evitar que Sherpa "invente" texto en la decisión de AMD
+    lo seguiría viendo igual acá, en el transcript de auditoría del log.
     Devuelve (provider_usado, transcript) — nunca cambia la decisión de AMD.
     """
     if active_providers is None:
         from app.db.providers import get_active_providers
         active_providers = await get_active_providers()
-    candidates = [provider] + _by_fallback_priority([p for p in active_providers if p != provider])
+    if fallback_enabled:
+        candidates = [provider] + _by_fallback_priority([p for p in active_providers if p != provider])
+    else:
+        candidates = [provider]
     for p in candidates:
         func = _LAYER2_PROVIDERS.get(p)
         if not func:
