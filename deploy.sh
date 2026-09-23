@@ -520,6 +520,15 @@ sep "Copiando archivos a $DEPLOY_DIR"
 
 mkdir -p "$DEPLOY_DIR"
 
+# Código 24 de rsync ("partial transfer due to vanished source files") es una
+# advertencia documentada, no un fallo real — pasa con --delete cuando limpia
+# un árbol grande (ej. una carpeta vieja que ya no existe en $SRC_DIR): rsync
+# reporta como "vanished" archivos que el propio --delete ya había borrado un
+# instante antes, en la misma corrida. Bug real encontrado en producción: con
+# `set -e` activo, CUALQUIER código de salida no-cero de rsync (sin importar
+# si es solo esta advertencia benigna) cortaba TODO el script ahí mismo, sin
+# aviso — mismo patrón que ya pasó con gen_nftables.py (v1.28.6/v1.28.7). Acá
+# se tolera específicamente el 24; cualquier otro código sí corta el deploy.
 rsync -a --delete \
     --exclude='.git/' \
     --exclude='credentials.conf' \
@@ -529,7 +538,11 @@ rsync -a --delete \
     --exclude='mysql_data/' \
     --exclude='redis_data/' \
     --exclude='models-local/' \
-    "$SRC_DIR/" "$DEPLOY_DIR/"
+    "$SRC_DIR/" "$DEPLOY_DIR/" && _rsync_rc=0 || _rsync_rc=$?
+if [[ $_rsync_rc -ne 0 ]]; then
+    [[ $_rsync_rc -eq 24 ]] || die "rsync falló copiando archivos a $DEPLOY_DIR (código $_rsync_rc)"
+    info "rsync: algunos archivos 'desaparecieron' durante la limpieza de --delete (código 24, no fatal) — continuando"
+fi
 
 # Symlink al mismo archivo real — no hay copia que sincronizar ni que pueda
 # desincronizarse (antes existían dos .env: uno en $SRC_DIR y otro en

@@ -7,6 +7,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.29.3 — 2026-09-23
+
+- Corregido: el instalador (`deploy.sh`) podía cortarse a mitad de camino con una advertencia benigna
+  de copiado de archivos, dejando la actualización incompleta. Corregido y verificado. Correr
+  `deploy.sh` de nuevo.
+
+---
+
 ## v1.29.2 — 2026-09-23
 
 - Corregido: un componente experimental no usado por la mayoría de las instalaciones (modo ARI)
