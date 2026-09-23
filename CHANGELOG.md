@@ -7,6 +7,14 @@ Todas las versiones siguen el esquema `MAJOR.MINOR.PATCH`:
 - **MINOR**: nuevo módulo o mejora significativa.
 - **PATCH**: corrección de errores, ajustes de interfaz, mejoras menores.
 
+## v1.29.2 — 2026-09-23
+
+- Corregido: un componente experimental no usado por la mayoría de las instalaciones (modo ARI)
+  reiniciaba sin parar y llenaba los logs cuando no estaba configurado. Ahora queda quieto hasta que
+  se active, sin generar ruido. Aplicar corriendo `deploy.sh` de nuevo.
+
+---
+
 ## v1.29.1 — 2026-09-21
 
 - **Corregido (urgente)**: al usar la opción "Transcripción directa" agregada en la versión anterior,

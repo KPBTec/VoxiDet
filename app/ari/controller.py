@@ -498,12 +498,19 @@ async def _apply_db_overrides() -> None:
 async def run() -> None:
     """Loop principal — conecta al WebSocket de eventos de ARI y despacha
     StasisStart. Reconecta solo si se corta (Asterisk reiniciando, red, etc)."""
-    await _apply_db_overrides()
-
-    if not settings.ARI_URL or not settings.ARI_PASSWORD:
-        log.error("ARI: ARI_URL/ARI_PASSWORD no configurados — el controlador no arranca "
-                   "(ver README.md § Modo ARI (experimental)).")
-        return
+    _warned = False
+    while True:
+        await _apply_db_overrides()
+        if settings.ARI_URL and settings.ARI_PASSWORD:
+            break
+        if not _warned:
+            log.error("ARI: ARI_URL/ARI_PASSWORD no configurados — el controlador queda en espera "
+                       "(ver README.md § Modo ARI (experimental)). Reintenta solo cada 5 min, sin "
+                       "reiniciar el contenedor — antes esto salía del proceso y 'restart: always' "
+                       "lo reiniciaba en loop cada ~60s, llenando los logs sin parar (bug real, "
+                       "encontrado en producción). Se retoma solo si se configura ARI desde el panel.")
+            _warned = True
+        await asyncio.sleep(300)
 
     _load_models()
 
